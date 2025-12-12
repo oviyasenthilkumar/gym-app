@@ -634,10 +634,10 @@ export default function MembersPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             leading="🔎"
-            className="md:max-w-xs"
+            className="w-1/2"
           />
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 w-1/2">
             {(["All", "Active", "Frozen", "Pending"] as const).map((item) => (
               <Button
                 key={item}
