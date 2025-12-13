@@ -183,12 +183,23 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { authApi, setAuthToken, setUser } from "@/lib/api";
 
 type FormState = {
   name: string;
   email: string;
+  phone: string;
   password: string;
   confirm: string;
+  role: "member" | "trainer" | "admin";
+  membershipStartDate: string;
+  membershipEndDate: string;
+  plan: string;
+  class: string;
+  classType: string;
+  difficultyLevel: string;
+  age: string;
+  weight: string;
 };
 
 export default function RegisterPage() {
@@ -196,13 +207,24 @@ export default function RegisterPage() {
   const [form, setForm] = useState<FormState>({
     name: "",
     email: "",
+    phone: "",
     password: "",
     confirm: "",
+    role: "member",
+    membershipStartDate: "",
+    membershipEndDate: "",
+    plan: "",
+    class: "",
+    classType: "Cardio",
+    difficultyLevel: "Beginner",
+    age: "",
+    weight: "",
   });
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [terms, setTerms] = useState(true);
+  const [nextBillingDate, setNextBillingDate] = useState<string>("");
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -213,8 +235,30 @@ export default function RegisterPage() {
   const passwordRegex =
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
+  // Auto-calculate next billing date when start date changes (30 days from start)
+  const handleStartDateChange = (date: string) => {
+    setForm((f) => ({ ...f, membershipStartDate: date }));
+    if (date) {
+      const startDate = new Date(date);
+      const billingDate = new Date(startDate);
+      billingDate.setDate(billingDate.getDate() + 30);
+      setNextBillingDate(billingDate.toISOString().slice(0, 10));
+    } else {
+      setNextBillingDate("");
+    }
+  };
+
+  // Check if membership is expiring in 7 days
+  const isExpiringSoon = () => {
+    if (!form.membershipEndDate) return false;
+    const endDate = new Date(form.membershipEndDate);
+    const today = new Date();
+    const daysUntilExpiry = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return daysUntilExpiry <= 7 && daysUntilExpiry >= 0;
+  };
+
   // ---------------- HANDLE SUBMIT ----------------
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
 
@@ -225,6 +269,33 @@ export default function RegisterPage() {
     if (!emailRegex.test(form.email)) {
       setError("Enter a valid email address.");
       return;
+    }
+    if (!form.phone.trim() || form.phone.length < 6) {
+      setError("Phone number must be at least 6 characters.");
+      return;
+    }
+    // Validate trainee-specific fields
+    if (form.role === 'member') {
+      if (!form.membershipStartDate) {
+        setError("Please select a membership start date.");
+        return;
+      }
+      if (!form.membershipEndDate) {
+        setError("Please select a membership end date.");
+        return;
+      }
+      if (new Date(form.membershipEndDate) <= new Date(form.membershipStartDate)) {
+        setError("Membership end date must be after start date.");
+        return;
+      }
+      if (!form.plan.trim()) {
+        setError("Please enter a membership plan.");
+        return;
+      }
+      if (!form.class.trim()) {
+        setError("Please enter a class.");
+        return;
+      }
     }
     if (!passwordRegex.test(form.password)) {
       setError(
@@ -242,10 +313,44 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await authApi.register(
+        form.name,
+        form.email,
+        form.phone,
+        form.password,
+        form.confirm,
+        form.role === 'member' ? form.membershipStartDate : undefined,
+        form.role === 'member' ? form.membershipEndDate : undefined,
+        form.role === 'member' ? form.plan : undefined,
+        form.role === 'member' ? form.class : undefined,
+        form.role === 'member' ? form.classType : undefined,
+        form.role === 'member' ? form.difficultyLevel : undefined,
+        form.role,
+        form.role === 'member' && form.age ? parseInt(form.age) : undefined,
+        form.role === 'member' && form.weight ? parseFloat(form.weight) : undefined
+      );
+
+      if (response.success && response.data) {
+        // Store token and user data
+        setAuthToken(response.data.token);
+        setUser(response.data.user);
+
+        // Redirect based on role
+        const role = response.data.user.role;
+        if (role === 'admin') {
+          router.push('/dashboard');
+        } else if (role === 'trainer') {
+          router.push('/trainer/dashboard');
+        } else {
+          router.push('/trainee/dashboard');
+        }
+      }
+    } catch (error: any) {
+      setError(error.message || "Registration failed. Please try again.");
+    } finally {
       setLoading(false);
-      router.push("/dashboard");
-    }, 900);
+    }
   };
 
   return (
@@ -311,6 +416,161 @@ export default function RegisterPage() {
                   }
                   required
                 />
+
+                <Input
+                  label="Phone number"
+                  type="tel"
+                  placeholder="+1 (555) 000-0000"
+                  value={form.phone}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, phone: e.target.value }))
+                  }
+                  required
+                  hint="Minimum 6 characters"
+                />
+
+                {/* Role Selection */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Role <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={form.role}
+                    onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as "member" | "trainer" | "admin" }))}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    required
+                  >
+                    <option value="member">Trainee</option>
+                    <option value="trainer">Trainer</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+
+                {/* Trainee-specific Membership Fields */}
+                {form.role === 'member' && (
+                  <div className="space-y-4 border-t border-slate-200 pt-4">
+                    <p className="text-sm font-semibold text-slate-700">Membership Details (Trainee)</p>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Input
+                        label="Age"
+                        type="number"
+                        placeholder="e.g., 25"
+                        value={form.age}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, age: e.target.value }))
+                        }
+                        min="1"
+                        max="150"
+                      />
+                      <Input
+                        label="Weight (kg)"
+                        type="number"
+                        placeholder="e.g., 70"
+                        value={form.weight}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, weight: e.target.value }))
+                        }
+                        min="1"
+                        max="1000"
+                        step="0.1"
+                      />
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Input
+                        label="Start Date"
+                        type="date"
+                        value={form.membershipStartDate}
+                        onChange={(e) => handleStartDateChange(e.target.value)}
+                        required
+                      />
+                      <Input
+                        label="End Date"
+                        type="date"
+                        value={form.membershipEndDate}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, membershipEndDate: e.target.value }))
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Input
+                        label="Plan"
+                        placeholder="e.g., Premium, Standard"
+                        value={form.plan}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, plan: e.target.value }))
+                        }
+                        required
+                      />
+                      <Input
+                        label="Class"
+                        placeholder="e.g., Yoga, CrossFit"
+                        value={form.class}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, class: e.target.value }))
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          Class Type <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={form.classType}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, classType: e.target.value }))
+                          }
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          required
+                        >
+                          <option value="Cardio">Cardio</option>
+                          <option value="Strength">Strength</option>
+                          <option value="Yoga">Yoga</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          Difficulty Level <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={form.difficultyLevel}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, difficultyLevel: e.target.value }))
+                          }
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          required
+                        >
+                          <option value="Beginner">Beginner</option>
+                          <option value="Intermediate">Intermediate</option>
+                          <option value="Advanced">Advanced</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {nextBillingDate && (
+                      <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm">
+                        <span className="font-semibold text-blue-900">Next Billing Date (Auto-calculated): </span>
+                        <span className="text-blue-700">{new Date(nextBillingDate).toLocaleDateString()}</span>
+                        <p className="text-xs text-blue-600 mt-1">30 days from start date</p>
+                      </div>
+                    )}
+
+                    {isExpiringSoon() && (
+                      <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm">
+                        <span className="font-semibold text-amber-900">⚠️ Warning: </span>
+                        <span className="text-amber-800">Membership expiring in 7 days or less</span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Password */}
                 <div className="relative">

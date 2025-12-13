@@ -4,26 +4,61 @@ import { Card } from "@/components/ui/card";
 import { TableRow } from "@/components/ui/table-row";
 import { attendanceDays, attendanceSummary } from "@/data/attendance";
 import { classes } from "@/data/classes";
-import { members } from "@/data/members";
+import { membersApi, Member } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function AttendancePage() {
   const [selectedClassId, setSelectedClassId] = useState(classes[0]?.id);
   const [presentIds, setPresentIds] = useState<Set<string>>(new Set());
+  const [participants, setParticipants] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const selectedClass = useMemo(
     () => classes.find((c) => c.id === selectedClassId) ?? classes[0],
     [selectedClassId]
   );
 
-  const activeMembers = useMemo(
-    () => members.filter((m) => m.status === "Active"),
-    []
+  useEffect(() => {
+    const loadParticipants = async () => {
+      try {
+        setLoading(true);
+        const [traineesRes, trainersRes] = await Promise.all([
+          membersApi.getAll(undefined, undefined, "member"),
+          membersApi.getAll(undefined, undefined, "trainer"),
+        ]);
+
+        const trainees = traineesRes.success && traineesRes.data ? traineesRes.data : [];
+        const trainers = trainersRes.success && trainersRes.data ? trainersRes.data : [];
+
+        setParticipants([
+          ...trainees.map((t) => ({ ...t, role: "member" as const })),
+          ...trainers.map((t) => ({ ...t, role: "trainer" as const })),
+        ]);
+      } catch (err) {
+        console.error("Error loading participants:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadParticipants();
+  }, []);
+
+  const activeParticipants = useMemo(
+    () =>
+      participants.filter((p) => {
+        if (p.role === "member") {
+          return p.status?.toLowerCase() !== "inactive" && p.isActive !== false;
+        }
+        // Keep trainers always visible
+        return true;
+      }),
+    [participants]
   );
 
   const presentCount = presentIds.size;
-  const totalCount = activeMembers.length;
+  const totalCount = activeParticipants.length;
   const attendancePercent = totalCount
     ? Math.round((presentCount / totalCount) * 100)
     : 0;
@@ -76,25 +111,36 @@ export default function AttendancePage() {
                 Mark attendance
               </p>
               <p className="text-xs text-slate-500">
-                Tap to toggle present. This is client-side only.
+                Trainees and trainers are listed. Tap to toggle present (client-side).
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {activeMembers.map((member) => (
-                  <button
-                    key={member.id}
-                    onClick={() => togglePresent(member.id)}
-                    className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition ${
-                      presentIds.has(member.id)
-                        ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-blue-200"
-                    }`}
-                  >
-                    <span className="font-semibold">{member.name}</span>
-                    <span className="text-xs">
-                      {presentIds.has(member.id) ? "Present" : "Tap to mark"}
-                    </span>
-                  </button>
-                ))}
+                {loading ? (
+                  <p className="text-sm text-slate-500">Loading attendees...</p>
+                ) : activeParticipants.length === 0 ? (
+                  <p className="text-sm text-slate-500">No trainees or trainers found.</p>
+                ) : (
+                  activeParticipants.map((person) => (
+                    <button
+                      key={person._id}
+                      onClick={() => togglePresent(person._id)}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition ${
+                        presentIds.has(person._id)
+                          ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-blue-200"
+                      }`}
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-semibold">{person.name}</span>
+                        <span className="text-xs text-slate-500">
+                          {person.role === "trainer" ? "Trainer" : "Trainee"}
+                        </span>
+                      </div>
+                      <span className="text-xs">
+                        {presentIds.has(person._id) ? "Present" : "Tap to mark"}
+                      </span>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           </div>

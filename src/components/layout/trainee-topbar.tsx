@@ -1,14 +1,42 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { traineeProfile } from "@/data/trainee";
-import Image from "next/image";
+import { membersApi, Member, getUser } from "@/lib/api";
+import { useEffect, useState, useMemo } from "react";
 
 export function TraineeTopbar({
   onToggleSidebar,
 }: {
   onToggleSidebar: () => void;
 }) {
+  const user = useMemo(() => getUser(), []);
+  const [memberProfile, setMemberProfile] = useState<Member | null>(null);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return;
+
+      try {
+        const response = await membersApi.getProfile();
+        if (response.success && response.data) {
+          setMemberProfile(response.data);
+        }
+      } catch (error) {
+        console.error("Error loading profile:", error);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
+
+  const displayName = memberProfile?.name || user?.name || "Trainee";
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
     <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/70">
       <button
@@ -28,19 +56,18 @@ export function TraineeTopbar({
       </div>
 
       <div className="ml-auto flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-2 shadow-sm">
-        <div className="relative h-10 w-10 overflow-hidden rounded-full">
-          <Image
-            src={traineeProfile.avatar}
-            alt={traineeProfile.name}
-            fill
-            sizes="40px"
-            className="object-cover"
-            priority
-          />
+        <div className="relative h-10 w-10 overflow-hidden rounded-full bg-slate-100 flex items-center justify-center">
+          {memberProfile ? (
+            <span className="text-sm font-semibold text-slate-600">
+              {initials}
+            </span>
+          ) : (
+            <span className="text-sm font-semibold text-slate-600">U</span>
+          )}
         </div>
         <div>
           <p className="text-sm font-semibold text-slate-900">
-            {traineeProfile.name}
+            {displayName}
           </p>
           <p className="text-xs text-slate-500">Trainee</p>
         </div>

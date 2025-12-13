@@ -2,7 +2,9 @@
 
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
-import { useState } from "react";
+import { getUser } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 
 export default function AppLayout({
   children,
@@ -10,6 +12,32 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const user = getUser();
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    
+    // Only allow admin users to access admin pages
+    if (user.role !== 'admin') {
+      // Redirect based on role
+      if (user.role === 'trainer') {
+        router.push("/trainer/dashboard");
+      } else if (user.role === 'member') {
+        router.push("/trainee/dashboard");
+      } else {
+        router.push("/login");
+      }
+    }
+  }, [router]);
+
+  const user = getUser();
+  if (!user || user.role !== 'admin') {
+    return null; // Will redirect
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">

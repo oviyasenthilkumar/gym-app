@@ -2,7 +2,9 @@
 
 import { TrainerSidebar } from "@/components/layout/trainer-sidebar";
 import { TrainerTopbar } from "@/components/layout/trainer-topbar";
-import { useState } from "react";
+import { getUser } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 
 export default function TrainerLayout({
   children,
@@ -10,6 +12,32 @@ export default function TrainerLayout({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const user = getUser();
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    
+    // Only allow trainer users to access trainer pages
+    if (user.role !== 'trainer') {
+      // Redirect based on role
+      if (user.role === 'admin') {
+        router.push("/dashboard");
+      } else if (user.role === 'member') {
+        router.push("/trainee/dashboard");
+      } else {
+        router.push("/login");
+      }
+    }
+  }, [router]);
+
+  const user = getUser();
+  if (!user || user.role !== 'trainer') {
+    return null; // Will redirect
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">

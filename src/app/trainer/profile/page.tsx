@@ -5,16 +5,37 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { trainerProfile } from "@/data/trainer";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { authApi, removeAuthToken, removeUser } from "@/lib/api";
 
 export default function TrainerProfilePage() {
   const [profile, setProfile] = useState({
-    name: trainerProfile.name,
-    email: trainerProfile.email,
-    phone: trainerProfile.phone,
+    name: "",
+    email: "",
+    phone: "",
     password: "",
   });
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await authApi.getProfile();
+        if (response.success && response.data) {
+          setProfile(prev => ({
+            ...prev,
+            name: response.data!.name,
+            email: response.data!.email,
+            phone: (response.data as any).phone || "",
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   const onChange = (key: keyof typeof profile, value: string) => {
     setProfile((p) => ({ ...p, [key]: value }));
@@ -33,12 +54,12 @@ export default function TrainerProfilePage() {
         <Button
           variant="secondary"
           onClick={() => {
-            setProfile({
-              name: trainerProfile.name,
-              email: trainerProfile.email,
-              phone: trainerProfile.phone,
+            // Reset to initial fetched values would require storing them separately
+            // For now, we just clear password
+            setProfile(prev => ({
+              ...prev,
               password: "",
-            });
+            }));
             setSaved(false);
           }}
         >
@@ -58,7 +79,7 @@ export default function TrainerProfilePage() {
             <div className="relative h-24 w-24 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
               <Image
                 src={trainerProfile.avatar}
-                alt={trainerProfile.name}
+                alt={profile.name || "Profile"}
                 fill
                 sizes="96px"
                 className="object-cover"
@@ -95,7 +116,11 @@ export default function TrainerProfilePage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={() => setSaved(true)}>Save changes</Button>
-            <Button variant="secondary" onClick={() => setSaved(true)}>
+            <Button variant="secondary" onClick={() => {
+              removeAuthToken();
+              removeUser();
+              window.location.href = '/login';
+            }}>
               Logout
             </Button>
           </div>

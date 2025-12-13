@@ -1,26 +1,84 @@
+"use client";
+
 import { Card } from "@/components/ui/card";
 import { TableRow } from "@/components/ui/table-row";
-import { classes } from "@/data/classes";
-import { members } from "@/data/members";
 import { recentActivities, revenueTrend } from "@/data/metrics";
+import { dashboardApi, membersApi, sessionsApi, getUser } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
-  const upcomingClasses = classes.slice(0, 3);
-  const recentMembers = members.slice(0, 4);
-  const activeMembers = members.filter((m) => m.status === "Active").length;
-  const weeklyClasses = classes.length;
-  const attendancePercent = Math.round(
-    (classes.reduce((acc, cls) => acc + cls.booked / cls.capacity, 0) /
-      classes.length) *
-      100
-  );
-  const now = new Date();
-  const expiringSoon = members.filter((m) => {
-    const days =
-      (new Date(m.nextBilling).getTime() - now.getTime()) /
-      (1000 * 60 * 60 * 24);
-    return days >= 0 && days <= 7;
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    activeMembers: 0,
+    expiringSoon: 0,
+    weeklyClasses: 0,
+    attendancePercent: 0,
   });
+  const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
+  const [recentMembers, setRecentMembers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const user = getUser();
+        if (!user) {
+          router.push("/login");
+          return;
+        }
+
+        // Load dashboard stats based on role
+        let statsResponse;
+        if (user.role === 'admin') {
+          statsResponse = await dashboardApi.getAdminStats();
+        } else if (user.role === 'trainer') {
+          statsResponse = await dashboardApi.getTrainerStats();
+        } else {
+          statsResponse = await dashboardApi.getMemberStats();
+        }
+
+        if (statsResponse.success && statsResponse.data) {
+          const data = statsResponse.data;
+          setStats({
+            activeMembers: data.activeMembersCount || data.activeMembers || 0,
+            expiringSoon: data.expiringMembersCount || data.expiringMembers || 0,
+            weeklyClasses: data.weeklyClassesCount || data.weeklyClasses || 0,
+            attendancePercent: data.attendancePercentage || 0,
+          });
+        }
+
+        // Load recent members
+        const membersResponse = await membersApi.getAll();
+        if (membersResponse.success && membersResponse.data) {
+          setRecentMembers(membersResponse.data.slice(0, 4));
+        }
+
+        // Load upcoming classes (sessions)
+        const sessionsResponse = await sessionsApi.getAll();
+        if (sessionsResponse.success && sessionsResponse.data) {
+          const upcoming = sessionsResponse.data
+            .filter((s: any) => s.status === 'Scheduled')
+            .slice(0, 3);
+          setUpcomingClasses(upcoming);
+        }
+      } catch (error) {
+        console.error("Error loading dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-slate-600">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -29,7 +87,7 @@ export default function DashboardPage() {
           <p className="text-sm font-semibold text-slate-500">Active members</p>
           <div className="mt-2 flex items-end justify-between">
             <p className="text-3xl font-semibold text-slate-900">
-              {activeMembers}
+              {stats.activeMembers}
             </p>
             <span className="badge bg-emerald-50 text-emerald-700">Live</span>
           </div>
@@ -43,7 +101,7 @@ export default function DashboardPage() {
           </p>
           <div className="mt-2 flex items-end justify-between">
             <p className="text-3xl font-semibold text-slate-900">
-              {expiringSoon.length}
+              {stats.expiringSoon}
             </p>
             <span className="badge bg-amber-50 text-amber-700">Renewals</span>
           </div>
@@ -57,7 +115,7 @@ export default function DashboardPage() {
           </p>
           <div className="mt-2 flex items-end justify-between">
             <p className="text-3xl font-semibold text-slate-900">
-              {weeklyClasses}
+              {stats.weeklyClasses}
             </p>
             <span className="badge bg-blue-50 text-blue-700">This week</span>
           </div>
@@ -71,7 +129,7 @@ export default function DashboardPage() {
           </p>
           <div className="mt-2 flex items-end justify-between">
             <p className="text-3xl font-semibold text-slate-900">
-              {attendancePercent}%
+              {stats.attendancePercent}%
             </p>
             <span className="badge bg-indigo-50 text-indigo-700">Fill</span>
           </div>
@@ -132,51 +190,59 @@ export default function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Upcoming classes" action={<span className="text-sm text-blue-700">View all</span>}>
           <div className="space-y-3">
-            {upcomingClasses.map((item) => (
-              <TableRow
-                key={item.id}
-                cells={[
-                  <div key="title">
-                    <p className="font-semibold text-slate-900">{item.title}</p>
-                    <p className="text-xs text-slate-500">
-                      {item.time} · {item.location}
-                    </p>
-                  </div>,
-                  <div key="coach" className="text-sm text-slate-600">
-                    Coach {item.coach}
-                  </div>,
-                  <div key="capacity" className="text-sm font-semibold text-blue-700">
-                    {item.booked}/{item.capacity} booked
-                  </div>,
-                ]}
-                className="grid-cols-[1.5fr,1fr,1fr]"
-              />
-            ))}
+            {upcomingClasses.length > 0 ? (
+              upcomingClasses.map((item) => (
+                <TableRow
+                  key={item._id}
+                  cells={[
+                    <div key="title">
+                      <p className="font-semibold text-slate-900">{item.name}</p>
+                      <p className="text-xs text-slate-500">
+                        {new Date(item.date).toLocaleDateString()} {item.startTime} · {item.location || 'N/A'}
+                      </p>
+                    </div>,
+                    <div key="coach" className="text-sm text-slate-600">
+                      Trainer {item.trainer}
+                    </div>,
+                    <div key="capacity" className="text-sm font-semibold text-blue-700">
+                      {item.capacity} capacity
+                    </div>,
+                  ]}
+                  className="grid-cols-[1.5fr,1fr,1fr]"
+                />
+              ))
+            ) : (
+              <p className="text-sm text-slate-500">No upcoming classes</p>
+            )}
           </div>
         </Card>
 
         <Card title="Recent members" action={<span className="text-sm text-blue-700">Manage</span>}>
           <div className="space-y-3">
-            {recentMembers.map((member) => (
-              <TableRow
-                key={member.id}
-                cells={[
-                  <div key="name">
-                    <p className="font-semibold text-slate-900">{member.name}</p>
-                    <p className="text-xs text-slate-500">{member.email}</p>
-                  </div>,
-                  <div key="plan" className="text-sm text-slate-600">
-                    {member.plan} plan
-                  </div>,
-                  <div key="status">
-                    <span className="badge bg-emerald-50 text-emerald-700">
-                      {member.status}
-                    </span>
-                  </div>,
-                ]}
-                className="grid-cols-[1.5fr,1fr,0.8fr]"
-              />
-            ))}
+            {recentMembers.length > 0 ? (
+              recentMembers.map((member) => (
+                <TableRow
+                  key={member._id}
+                  cells={[
+                    <div key="name">
+                      <p className="font-semibold text-slate-900">{member.name}</p>
+                      <p className="text-xs text-slate-500">{member.email}</p>
+                    </div>,
+                    <div key="plan" className="text-sm text-slate-600">
+                      {member.plan || 'N/A'} plan
+                    </div>,
+                    <div key="status">
+                      <span className="badge bg-emerald-50 text-emerald-700">
+                        {member.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>,
+                  ]}
+                  className="grid-cols-[1.5fr,1fr,0.8fr]"
+                />
+              ))
+            ) : (
+              <p className="text-sm text-slate-500">No members found</p>
+            )}
           </div>
         </Card>
       </div>

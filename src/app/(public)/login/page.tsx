@@ -164,6 +164,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { authApi, setAuthToken, setUser } from "@/lib/api";
 
 type FormState = {
   email: string;
@@ -189,7 +190,6 @@ const [otp, setOtp] = useState("");
 const [newPass, setNewPass] = useState("");
 const [confirmPass, setConfirmPass] = useState("");
 
-const [generatedOtp] = useState("123456"); // mock OTP
 const [msg, setMsg] = useState("");
 
 
@@ -198,26 +198,42 @@ const [msg, setMsg] = useState("");
   const passwordRegex =
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{6,}$/;
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
 
     if (!emailRegex.test(form.email)) {
-      setError("Enter a valid admin email address.");
+      setError("Enter a valid email address.");
       return;
     }
-    if (!passwordRegex.test(form.password)) {
-      setError(
-        "Password must contain uppercase, lowercase, number & special character."
-      );
+    if (!form.password || form.password.length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await authApi.login(form.email, form.password);
+      if (response.success && response.data) {
+        setAuthToken(response.data.token);
+        setUser(response.data.user);
+        
+        // Redirect based on role
+        const role = response.data.user.role;
+        if (role === 'admin') {
+          router.push("/dashboard");
+        } else if (role === 'trainer') {
+          router.push("/trainer/dashboard");
+        } else if (role === 'member') {
+          router.push("/trainee/dashboard");
+        } else {
+          router.push("/dashboard");
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || "Invalid email or password. Please try again.");
       setLoading(false);
-      router.push("/dashboard");
-    }, 900);
+    }
   };
 
   return (
@@ -377,15 +393,19 @@ const [msg, setMsg] = useState("");
 
     <Button
       className="w-full"
-      onClick={() => {
+      onClick={async () => {
         if (!/\S+@\S+\.\S+/.test(resetEmail)) {
           setMsg("Enter a valid email address.");
           return;
         }
         setMsg("");
-        setShowEmailModal(false);
-        setShowOtpModal(true);
-        console.log("OTP Sent:", generatedOtp); // simulate OTP sending
+        try {
+          await authApi.forgotPassword(resetEmail);
+          setShowEmailModal(false);
+          setShowOtpModal(true);
+        } catch (err: any) {
+          setMsg(err.message || "Failed to send OTP. Please try again.");
+        }
       }}
     >
       Send OTP
@@ -414,14 +434,19 @@ const [msg, setMsg] = useState("");
 
     <Button
       className="w-full"
-      onClick={() => {
-        if (otp !== generatedOtp) {
-          setMsg("Incorrect OTP. Try again.");
+      onClick={async () => {
+        if (!otp || otp.length !== 6) {
+          setMsg("Please enter a valid 6-digit OTP.");
           return;
         }
         setMsg("");
-        setShowOtpModal(false);
-        setShowResetModal(true);
+        try {
+          await authApi.verifyOTP(resetEmail, otp);
+          setShowOtpModal(false);
+          setShowResetModal(true);
+        } catch (err: any) {
+          setMsg(err.message || "Invalid OTP. Please try again.");
+        }
       }}
     >
       Verify OTP
@@ -477,7 +502,7 @@ const [msg, setMsg] = useState("");
 
     <Button
       className="w-full"
-      onClick={() => {
+      onClick={async () => {
         if (newPass.length < 6) {
           setMsg("Password must be at least 6 characters.");
           return;
@@ -488,8 +513,18 @@ const [msg, setMsg] = useState("");
         }
 
         setMsg("");
-        setShowResetModal(false);
-        alert("Password changed successfully!");
+        try {
+          await authApi.resetPassword(resetEmail, otp, newPass, confirmPass);
+          setShowResetModal(false);
+          alert("Password changed successfully! You can now login with your new password.");
+          // Reset all states
+          setResetEmail("");
+          setOtp("");
+          setNewPass("");
+          setConfirmPass("");
+        } catch (err: any) {
+          setMsg(err.message || "Failed to reset password. Please try again.");
+        }
       }}
     >
       Update Password

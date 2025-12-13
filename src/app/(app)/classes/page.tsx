@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { ClassItem, classes } from "@/data/classes";
-import { useMemo, useState } from "react";
+import { ClassItem } from "@/data/classes";
+import { sessionsApi, Session } from "@/lib/api";
+import { useMemo, useState, useEffect } from "react";
 
 const levelColors = {
   Beginner: "bg-emerald-50 text-emerald-700",
@@ -14,77 +15,132 @@ const levelColors = {
 };
 
 export default function ClassesPage() {
-  const [list, setList] = useState<ClassItem[]>(classes);
+  const [list, setList] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [level, setLevel] = useState<keyof typeof levelColors | "All">("All");
+  const [statusFilter, setStatusFilter] = useState<string>("All");
   const [openModal, setOpenModal] = useState(false);
-  const [editing, setEditing] = useState<ClassItem | null>(null);
+  const [editing, setEditing] = useState<Session | null>(null);
   const [form, setForm] = useState({
-    title: "",
-    coach: "",
+    name: "",
+    trainer: "",
     capacity: 12,
-    booked: 0,
-    time: "",
-    level: "Beginner" as ClassItem["level"],
+    date: "",
+    startTime: "",
     location: "",
   });
 
+  useEffect(() => {
+    const loadSessions = async () => {
+      try {
+        setLoading(true);
+        const status = statusFilter === "All" ? undefined : statusFilter;
+        const response = await sessionsApi.getAll(undefined, undefined, status);
+        if (response.success && response.data) {
+          setList(response.data);
+        }
+      } catch (error) {
+        console.error("Error loading sessions:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSessions();
+  }, [statusFilter]);
+
   const filtered = useMemo(() => {
     return list.filter((cls) => {
-      const matchesLevel = level === "All" || cls.level === level;
-      const matchesQuery = cls.title
+      const matchesQuery = cls.name
         .toLowerCase()
         .includes(query.toLowerCase());
-      return matchesLevel && matchesQuery;
+      return matchesQuery;
     });
-  }, [query, level, list]);
+  }, [query, list]);
 
   const resetForm = () => {
     setForm({
-      title: "",
-      coach: "",
+      name: "",
+      trainer: "",
       capacity: 12,
-      booked: 0,
-      time: "",
-      level: "Beginner",
+      date: "",
+      startTime: "",
       location: "",
     });
   };
 
-  const handleSave = () => {
-    if (!form.title || !form.coach || !form.time) return;
-    if (editing) {
-      setList((prev) =>
-        prev.map((c) => (c.id === editing.id ? { ...editing, ...form } : c))
-      );
-      setEditing(null);
-    } else {
-      const newClass: ClassItem = {
-        ...form,
-        id: `C-${Math.floor(400 + Math.random() * 100)}`,
-      };
-      setList((prev) => [newClass, ...prev]);
+  const handleSave = async () => {
+    if (!form.name || !form.trainer || !form.date || !form.startTime || !form.location) return;
+    try {
+      if (editing) {
+        const response = await sessionsApi.update(editing._id, {
+          name: form.name,
+          trainer: form.trainer,
+          date: form.date,
+          startTime: form.startTime,
+          capacity: form.capacity,
+          location: form.location,
+        });
+        if (response.success) {
+          // Reload sessions
+          const sessionsResponse = await sessionsApi.getAll();
+          if (sessionsResponse.success && sessionsResponse.data) {
+            setList(sessionsResponse.data);
+          }
+          setEditing(null);
+        }
+      } else {
+        const response = await sessionsApi.create({
+          name: form.name,
+          trainer: form.trainer,
+          date: form.date,
+          startTime: form.startTime,
+          capacity: form.capacity,
+          location: form.location,
+        });
+        if (response.success) {
+          // Reload sessions
+          const sessionsResponse = await sessionsApi.getAll();
+          if (sessionsResponse.success && sessionsResponse.data) {
+            setList(sessionsResponse.data);
+          }
+        }
+      }
+      resetForm();
+      setOpenModal(false);
+    } catch (error: any) {
+      console.error("Error saving session:", error);
+      alert(error.message || "Failed to save session");
     }
-    resetForm();
-    setOpenModal(false);
   };
 
-  const startEdit = (cls: ClassItem) => {
+  const startEdit = (cls: Session) => {
     setEditing(cls);
     setForm({
-      title: cls.title,
-      coach: cls.coach,
+      name: cls.name,
+      trainer: cls.trainer,
       capacity: cls.capacity,
-      booked: cls.booked,
-      time: cls.time,
-      level: cls.level,
-      location: cls.location,
+      date: cls.date ? new Date(cls.date).toISOString().slice(0, 10) : "",
+      startTime: cls.startTime,
+      location: cls.location || "",
     });
     setOpenModal(true);
   };
 
-  const handleDelete = (id: string) => {
-    setList((prev) => prev.filter((c) => c.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await sessionsApi.cancel(id);
+      if (response.success) {
+        // Reload sessions
+        const sessionsResponse = await sessionsApi.getAll();
+        if (sessionsResponse.success && sessionsResponse.data) {
+          setList(sessionsResponse.data);
+        }
+      }
+    } catch (error: any) {
+      console.error("Error deleting session:", error);
+      alert(error.message || "Failed to delete session");
+    }
   };
 
   return (
@@ -109,13 +165,13 @@ export default function ClassesPage() {
             className="md:max-w-xs"
           />
           <div className="flex flex-wrap items-center gap-2">
-            {(["All", "Beginner", "Intermediate", "Advanced"] as const).map(
+            {(["All", "Scheduled", "Cancelled", "Completed"] as const).map(
               (item) => (
                 <Button
                   key={item}
-                  variant={level === item ? "primary" : "ghost"}
+                  variant={statusFilter === item ? "primary" : "ghost"}
                   size="sm"
-                  onClick={() => setLevel(item)}
+                  onClick={() => setStatusFilter(item)}
                 >
                   {item}
                 </Button>
@@ -125,61 +181,70 @@ export default function ClassesPage() {
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((cls) => {
-            const fill = Math.round((cls.booked / cls.capacity) * 100);
-            return (
-              <div
-                key={cls.id}
-                className="card-surface space-y-3 p-4 transition hover:-translate-y-0.5 hover:shadow-lg"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {cls.title}
+          {loading ? (
+            <div className="col-span-full text-center text-slate-500 py-8">
+              Loading classes...
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="col-span-full text-center text-slate-500 py-8">
+              No classes found
+            </div>
+          ) : (
+            filtered.map((cls) => {
+              return (
+                <div
+                  key={cls._id}
+                  className="card-surface space-y-3 p-4 transition hover:-translate-y-0.5 hover:shadow-lg"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {cls.name}
+                      </p>
+                      <p className="text-xs text-slate-500">Trainer {cls.trainer}</p>
+                    </div>
+                    <span className={`badge ${
+                      cls.status === 'Scheduled' ? 'bg-blue-50 text-blue-700' :
+                      cls.status === 'Cancelled' ? 'bg-rose-50 text-rose-700' :
+                      'bg-emerald-50 text-emerald-700'
+                    }`}>
+                      {cls.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-slate-600">
+                    <span>
+                      {new Date(cls.date).toLocaleDateString()} {cls.startTime} · {cls.location || 'N/A'}
+                    </span>
+                    <div className="flex gap-2 text-xs font-semibold">
+                      <button
+                        className="text-blue-700 hover:underline"
+                        onClick={() => startEdit(cls)}
+                      >
+                        Edit
+                      </button>
+                      {cls.status !== 'Cancelled' && (
+                        <button
+                          className="text-rose-600 hover:underline"
+                          onClick={() => handleDelete(cls._id)}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-slate-100 p-3">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                      <span>Capacity</span>
+                      <span>{cls.capacity} spots</span>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Capacity: {cls.capacity}
                     </p>
-                    <p className="text-xs text-slate-500">Coach {cls.coach}</p>
-                  </div>
-                  <span className={`badge ${levelColors[cls.level]}`}>
-                    {cls.level}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-slate-600">
-                  <span>
-                    {cls.time} · {cls.location}
-                  </span>
-                  <div className="flex gap-2 text-xs font-semibold">
-                    <button
-                      className="text-blue-700 hover:underline"
-                      onClick={() => startEdit(cls)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="text-rose-600 hover:underline"
-                      onClick={() => handleDelete(cls.id)}
-                    >
-                      Delete
-                    </button>
                   </div>
                 </div>
-                <div className="rounded-xl bg-slate-100 p-3">
-                  <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-                    <span>Capacity</span>
-                    <span>{fill}% full</span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-white">
-                    <span
-                      className="block h-full rounded-full bg-blue-300"
-                      style={{ width: `${fill}%` }}
-                    />
-                  </div>
-                  <p className="mt-2 text-xs text-slate-500">
-                    {cls.booked} of {cls.capacity} spots taken
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </Card>
 
@@ -196,15 +261,15 @@ export default function ClassesPage() {
           <Input
             label="Class name"
             placeholder="e.g. Strength Foundations"
-            value={form.title}
-            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           />
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
-              label="Coach"
+              label="Trainer"
               placeholder="Trainer name"
-              value={form.coach}
-              onChange={(e) => setForm((f) => ({ ...f, coach: e.target.value }))}
+              value={form.trainer}
+              onChange={(e) => setForm((f) => ({ ...f, trainer: e.target.value }))}
             />
             <Input
               label="Capacity"
@@ -216,29 +281,27 @@ export default function ClassesPage() {
               }
             />
           </div>
-          <Input
-            label="Time"
-            placeholder="Mon · 7:00 AM"
-            value={form.time}
-            onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
-          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input
+              label="Date"
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+            />
+            <Input
+              label="Start Time"
+              type="time"
+              placeholder="10:00"
+              value={form.startTime}
+              onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+            />
+          </div>
           <Input
             label="Location"
             placeholder="Studio A"
             value={form.location}
             onChange={(e) =>
               setForm((f) => ({ ...f, location: e.target.value }))
-            }
-          />
-          <Input
-            label="Level"
-            placeholder="Beginner"
-            value={form.level}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                level: e.target.value as ClassItem["level"],
-              }))
             }
           />
           <div className="flex justify-end gap-2 pt-2">
