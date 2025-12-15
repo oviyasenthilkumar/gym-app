@@ -2,7 +2,7 @@ export type Member = {
   id: string;
   name: string;
   avatar?: string;
-  status: "Active" | "Frozen" | "Pending";
+  status: "Active" | "Inactive" | "Pending";
   plan: "Standard" | "Plus" | "Premium";
   visitsThisMonth: number;
   nextBilling: string;
@@ -61,7 +61,7 @@ export const members: Member[] = [
     name: "Diego Alvarez",
     avatar:
       "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80",
-    status: "Frozen",
+    status: "Inactive",
     plan: "Standard",
     visitsThisMonth: 3,
     nextBilling: "2025-02-02",

@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { ClassItem } from "@/data/classes";
-import { sessionsApi, Session } from "@/lib/api";
+import { sessionsApi, trainersApi, Session } from "@/lib/api";
 import { useMemo, useState, useEffect } from "react";
 
 const levelColors = {
@@ -16,6 +16,7 @@ const levelColors = {
 
 export default function ClassesPage() {
   const [list, setList] = useState<Session[]>([]);
+  const [trainers, setTrainers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
@@ -28,6 +29,7 @@ export default function ClassesPage() {
     date: "",
     startTime: "",
     location: "",
+    status: "Scheduled",
   });
 
   useEffect(() => {
@@ -49,6 +51,20 @@ export default function ClassesPage() {
     loadSessions();
   }, [statusFilter]);
 
+  useEffect(() => {
+    const loadTrainers = async () => {
+      try {
+        const response = await trainersApi.getAll();
+        if (response.success && response.data) {
+          setTrainers(response.data);
+        }
+      } catch (error) {
+        console.error("Error loading trainers:", error);
+      }
+    };
+    loadTrainers();
+  }, []);
+
   const filtered = useMemo(() => {
     return list.filter((cls) => {
       const matchesQuery = cls.name
@@ -66,6 +82,7 @@ export default function ClassesPage() {
       date: "",
       startTime: "",
       location: "",
+      status: "Scheduled",
     });
   };
 
@@ -80,6 +97,7 @@ export default function ClassesPage() {
           startTime: form.startTime,
           capacity: form.capacity,
           location: form.location,
+          status: form.status as any,
         });
         if (response.success) {
           // Reload sessions
@@ -118,18 +136,36 @@ export default function ClassesPage() {
     setEditing(cls);
     setForm({
       name: cls.name,
-      trainer: cls.trainer,
+      trainer: typeof cls.trainer === 'object' ? cls.trainer._id : cls.trainer,
       capacity: cls.capacity,
       date: cls.date ? new Date(cls.date).toISOString().slice(0, 10) : "",
       startTime: cls.startTime,
       location: cls.location || "",
+      status: cls.status,
     });
     setOpenModal(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleCancel = async (id: string) => {
     try {
       const response = await sessionsApi.cancel(id);
+      if (response.success) {
+        // Reload sessions
+        const sessionsResponse = await sessionsApi.getAll();
+        if (sessionsResponse.success && sessionsResponse.data) {
+          setList(sessionsResponse.data);
+        }
+      }
+    } catch (error: any) {
+      console.error("Error cancelling session:", error);
+      alert(error.message || "Failed to cancel session");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this class? This action cannot be undone.")) return;
+    try {
+      const response = await sessionsApi.delete(id);
       if (response.success) {
         // Reload sessions
         const sessionsResponse = await sessionsApi.getAll();
@@ -201,13 +237,14 @@ export default function ClassesPage() {
                       <p className="text-sm font-semibold text-slate-900">
                         {cls.name}
                       </p>
-                      <p className="text-xs text-slate-500">Trainer {cls.trainer}</p>
+                      <p className="text-xs text-slate-500">
+                        Trainer {typeof cls.trainer === 'object' ? cls.trainer.name : cls.trainer}
+                      </p>
                     </div>
-                    <span className={`badge ${
-                      cls.status === 'Scheduled' ? 'bg-blue-50 text-blue-700' :
+                    <span className={`badge ${cls.status === 'Scheduled' ? 'bg-blue-50 text-blue-700' :
                       cls.status === 'Cancelled' ? 'bg-rose-50 text-rose-700' :
-                      'bg-emerald-50 text-emerald-700'
-                    }`}>
+                        'bg-emerald-50 text-emerald-700'
+                      }`}>
                       {cls.status}
                     </span>
                   </div>
@@ -225,11 +262,17 @@ export default function ClassesPage() {
                       {cls.status !== 'Cancelled' && (
                         <button
                           className="text-rose-600 hover:underline"
-                          onClick={() => handleDelete(cls._id)}
+                          onClick={() => handleCancel(cls._id)}
                         >
                           Cancel
                         </button>
                       )}
+                      <button
+                        className="text-red-600 hover:underline"
+                        onClick={() => handleDelete(cls._id)}
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                   <div className="rounded-xl bg-slate-100 p-3">
@@ -265,12 +308,24 @@ export default function ClassesPage() {
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           />
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              label="Trainer"
-              placeholder="Trainer name"
-              value={form.trainer}
-              onChange={(e) => setForm((f) => ({ ...f, trainer: e.target.value }))}
-            />
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Trainer
+              </label>
+              <select
+                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={form.trainer}
+                onChange={(e) => setForm((f) => ({ ...f, trainer: e.target.value }))}
+              >
+                <option value="">Select a trainer</option>
+                {trainers.map((t) => (
+                  <option key={t._id} value={t._id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <Input
               label="Capacity"
               type="number"
@@ -304,6 +359,24 @@ export default function ClassesPage() {
               setForm((f) => ({ ...f, location: e.target.value }))
             }
           />
+
+          {editing && (
+            <div className="space-y-1">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Status
+              </label>
+              <select
+                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={form.status}
+                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+              >
+                <option value="Scheduled">Scheduled</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2 pt-2">
             <Button
               variant="ghost"

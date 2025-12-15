@@ -12,15 +12,17 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
+    setMounted(true);
     const user = getUser();
     if (!user) {
       router.push("/login");
       return;
     }
-    
+
     // Only allow admin users to access admin pages
     if (user.role !== 'admin') {
       // Redirect based on role
@@ -33,6 +35,8 @@ export default function AppLayout({
       }
     }
   }, [router]);
+
+  if (!mounted) return null;
 
   const user = getUser();
   if (!user || user.role !== 'admin') {

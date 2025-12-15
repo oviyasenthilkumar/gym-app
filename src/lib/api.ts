@@ -45,7 +45,7 @@ export interface Member {
 export interface Session {
   _id: string;
   name: string;
-  trainer: string;
+  trainer: string | { _id: string; name: string; email: string };
   date: string;
   startTime: string;
   capacity: number;
@@ -57,6 +57,7 @@ export interface Session {
 
 export interface DashboardStats {
   activeMembersCount?: number;
+  activeMembers?: number;
   expiringMembersCount?: number;
   expiringMembersList?: Member[];
   weeklyClassesCount?: number;
@@ -259,7 +260,7 @@ export const membersApi = {
     plan?: string;
     status?: string;
     nextBillingDate?: string;
-    className?: string;
+    class?: string;
     classType?: string;
     difficultyLevel?: string;
     age?: number;
@@ -287,11 +288,12 @@ export const membersApi = {
 
 // Sessions API
 export const sessionsApi = {
-  getAll: async (startDate?: string, endDate?: string, status?: string): Promise<ApiResponse<Session[]>> => {
+  getAll: async (startDate?: string, endDate?: string, status?: string, trainerId?: string): Promise<ApiResponse<Session[]>> => {
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
     if (status) params.append('status', status);
+    if (trainerId) params.append('trainer', trainerId);
     const query = params.toString() ? `?${params.toString()}` : '';
     return apiRequest<Session[]>(`/sessions${query}`);
   },
@@ -326,6 +328,12 @@ export const sessionsApi = {
       method: 'PUT',
     });
   },
+
+  delete: async (id: string): Promise<ApiResponse<void>> => {
+    return apiRequest<void>(`/sessions/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // Dashboard API
@@ -345,15 +353,22 @@ export const dashboardApi = {
 
 // Attendance API
 export const attendanceApi = {
-  mark: async (sessionId: string, memberIds: string[]): Promise<ApiResponse<{ marked: number; errors: any[] }>> => {
+  mark: async (sessionId: string, memberId: string, isPresent: boolean): Promise<ApiResponse<{ marked: number; errors: any[] }>> => {
     return apiRequest<{ marked: number; errors: any[] }>('/attendance', {
       method: 'POST',
-      body: JSON.stringify({ sessionId, memberIds }),
+      body: JSON.stringify({ sessionId, memberId, isPresent }),
     });
   },
 
   getBySession: async (sessionId: string): Promise<ApiResponse<any[]>> => {
     return apiRequest<any[]>(`/attendance/session/${sessionId}`);
+  },
+};
+
+// Trainers API
+export const trainersApi = {
+  getAll: async (): Promise<ApiResponse<any[]>> => {
+    return apiRequest<any[]>('/trainers');
   },
 };
 

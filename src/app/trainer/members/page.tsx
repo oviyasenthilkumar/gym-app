@@ -180,25 +180,43 @@
 
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { trainerMembers } from "@/data/trainer";
+import { membersApi } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function TrainerMembersPage() {
   const [query, setQuery] = useState("");
+  const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      try {
+        const response = await membersApi.getAll(undefined, undefined, 'member');
+        if (response.success && response.data) {
+          setMembers(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch members", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMembers();
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return trainerMembers.filter((m) => {
+    return members.filter((m) => {
       return (
         m.name.toLowerCase().includes(q) ||
         (m.phone ?? "").toLowerCase().includes(q) ||
         (m.email ?? "").toLowerCase().includes(q)
       );
     });
-  }, [query]);
+  }, [query, members]);
 
   return (
     <div className="space-y-4">
@@ -234,89 +252,114 @@ export default function TrainerMembersPage() {
                 <th className="px-4 py-3 font-semibold">Start Date</th>
                 <th className="px-4 py-3 font-semibold">End Date</th>
                 <th className="px-4 py-3 font-semibold">Next Billing</th>
-                <th className="px-4 py-3 font-semibold"></th>
+                <th className="px-4 py-3 font-semibold">View</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-200">
-              {filtered.map((m) => (
-                <tr
-                  key={m.id}
-                  className="hover:bg-slate-50 text-sm text-slate-700"
-                >
-                  <td className="px-4 py-3">
-                    <ProfileCell name={m.name} avatar={m.avatar} id={m.id} />
-                  </td>
-
-                  <td className="px-4 py-3">{m.email ?? "—"}</td>
-                  <td className="px-4 py-3">{m.phone ?? "—"}</td>
-                  <td className="px-4 py-3">{m.plan ?? "—"}</td>
-                  <td className="px-4 py-3">{m.activityLevel ?? "Active"}</td>
-
-                  <td className="px-4 py-3">
-                    {m.startDate ? formatDate(m.startDate) : "—"}
-                  </td>
-
-                  <td className="px-4 py-3">
-                    {m.endDate ? formatDate(m.endDate) : "—"}
-                  </td>
-
-                  <td className="px-4 py-3">
-                    {m.nextBilling ? formatDate(m.nextBilling) : "—"}
-                  </td>
-
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/trainer/members/${m.id}`}
-                      className="text-sm font-semibold text-emerald-800"
-                    >
-                      View Profile
-                    </Link>
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
+                    Loading members...
                   </td>
                 </tr>
-              ))}
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
+                    No members found.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((m) => (
+                  <tr
+                    key={m._id}
+                    className="hover:bg-slate-50 text-sm text-slate-700"
+                  >
+                    <td className="px-4 py-3">
+                      <ProfileCell name={m.name} avatar={m.avatar} id={m._id} />
+                    </td>
+
+                    <td className="px-4 py-3">{m.email ?? "—"}</td>
+                    <td className="px-4 py-3">{m.phone ?? "—"}</td>
+                    <td className="px-4 py-3">{m.plan ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${m.isActive !== false ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                        {m.isActive !== false ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      {m.membershipStartDate ? formatDate(m.membershipStartDate) : "—"}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      {m.membershipEndDate ? formatDate(m.membershipEndDate) : "—"}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      {m.nextBillingDate ? formatDate(m.nextBillingDate) : "—"}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/trainer/members/${m._id}`}
+                        className="text-sm font-semibold text-emerald-800"
+                      >
+                        View Profile
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         {/* MOBILE VIEW */}
         <div className="md:hidden divide-y divide-slate-200">
-          {filtered.map((m) => (
-            <div key={m.id} className="px-4 py-3">
-              <div className="flex items-center justify-between">
-                <ProfileCell name={m.name} avatar={m.avatar} id={m.id} />
-                <Link
-                  href={`/trainer/members/${m.id}`}
-                  className="text-sm font-semibold text-emerald-800"
-                >
-                  View
-                </Link>
+          {loading ? (
+            <div className="px-4 py-8 text-center text-slate-500">Loading...</div>
+          ) : filtered.length === 0 ? (
+            <div className="px-4 py-8 text-center text-slate-500">No members found.</div>
+          ) : (
+            filtered.map((m) => (
+              <div key={m._id} className="px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <ProfileCell name={m.name} avatar={m.avatar} id={m._id} />
+                  <Link
+                    href={`/trainer/members/${m._id}`}
+                    className="text-sm font-semibold text-emerald-800"
+                  >
+                    View
+                  </Link>
+                </div>
+
+                <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
+                  <span className="font-semibold text-slate-500">Email</span>
+                  <span>{m.email ?? "—"}</span>
+
+                  <span className="font-semibold text-slate-500">Number</span>
+                  <span>{m.phone ?? "—"}</span>
+
+                  <span className="font-semibold text-slate-500">Plan</span>
+                  <span>{m.plan ?? "—"}</span>
+
+                  <span className="font-semibold text-slate-500">Status</span>
+                  <span>{m.isActive !== false ? "Active" : "Inactive"}</span>
+
+                  <span className="font-semibold text-slate-500">Start date</span>
+                  <span>{m.membershipStartDate ? formatDate(m.membershipStartDate) : "—"}</span>
+
+                  <span className="font-semibold text-slate-500">End date</span>
+                  <span>{m.membershipEndDate ? formatDate(m.membershipEndDate) : "—"}</span>
+
+                  <span className="font-semibold text-slate-500">Next billing</span>
+                  <span>{m.nextBillingDate ? formatDate(m.nextBillingDate) : "—"}</span>
+                </div>
               </div>
-
-              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
-                <span className="font-semibold text-slate-500">Email</span>
-                <span>{m.email ?? "—"}</span>
-
-                <span className="font-semibold text-slate-500">Number</span>
-                <span>{m.phone ?? "—"}</span>
-
-                <span className="font-semibold text-slate-500">Plan</span>
-                <span>{m.plan ?? "—"}</span>
-
-                <span className="font-semibold text-slate-500">Status</span>
-                <span>{m.activityLevel ?? "Active"}</span>
-
-                <span className="font-semibold text-slate-500">Start date</span>
-                <span>{m.startDate ? formatDate(m.startDate) : "—"}</span>
-
-                <span className="font-semibold text-slate-500">End date</span>
-                <span>{m.endDate ? formatDate(m.endDate) : "—"}</span>
-
-                <span className="font-semibold text-slate-500">Next billing</span>
-                <span>{m.nextBilling ? formatDate(m.nextBilling) : "—"}</span>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </Card>
     </div>

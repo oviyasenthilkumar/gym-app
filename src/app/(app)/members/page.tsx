@@ -499,7 +499,7 @@ import Link from "next/link";
 
 const statusColors: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
-  Frozen: "bg-amber-50 text-amber-700",
+  // Frozen: "bg-amber-50 text-amber-700",
   Pending: "bg-slate-100 text-slate-700",
   active: "bg-emerald-50 text-emerald-700",
   inactive: "bg-amber-50 text-amber-700",
@@ -579,8 +579,8 @@ export default function MembersPage() {
           activeTab === "members"
             ? "member"
             : roleFilter === "All"
-            ? undefined
-            : roleMap[roleFilter];
+              ? undefined
+              : roleMap[roleFilter];
 
         const response = await membersApi.getAll(
           query || undefined,
@@ -649,7 +649,7 @@ export default function MembersPage() {
     }
 
     try {
-   if (editing) {
+      if (editing) {
         const response = await membersApi.update(editing._id, {
           name: form.name,
           email: form.email,
@@ -671,9 +671,9 @@ export default function MembersPage() {
           if (membersResponse.success && membersResponse.data) {
             setList(membersResponse.data);
           }
-  setEditing(null);
+          setEditing(null);
         }
-} else {
+      } else {
         const response = await membersApi.create({
           name: form.name,
           email: form.email,
@@ -683,7 +683,7 @@ export default function MembersPage() {
           status: form.status,
           membershipStartDate: form.membershipStartDate,
           membershipEndDate: form.membershipEndDate,
-          className: form.className,
+          class: form.className,
           classType: form.classType,
           difficultyLevel: form.difficultyLevel,
           age: form.age ? parseInt(form.age) : undefined,
@@ -699,8 +699,8 @@ export default function MembersPage() {
           }
         }
       }
-    resetForm();
-    setOpenCreate(false);
+      resetForm();
+      setOpenCreate(false);
     } catch (error: any) {
       console.error("Error saving member:", error);
       alert(error.message || "Failed to save member");
@@ -713,7 +713,7 @@ export default function MembersPage() {
       name: member.name,
       email: member.email,
       phone: member.phone ?? "",
-      role: "member" as "admin" | "trainer" | "member", // Default to member when editing
+      role: (member.role as "admin" | "trainer" | "member") || "member",
       plan: member.plan || "Standard",
       status: member.status || "active",
       membershipStartDate: member.membershipStartDate
@@ -744,7 +744,7 @@ export default function MembersPage() {
         if (membersResponse.success && membersResponse.data) {
           setList(membersResponse.data);
         }
-    setConfirmDelete(null);
+        setConfirmDelete(null);
       }
     } catch (error: any) {
       console.error("Error deleting member:", error);
@@ -809,112 +809,112 @@ export default function MembersPage() {
             {activeTab === "members" && (
               <div className="flex gap-2">
                 <span className="text-xs text-slate-500 self-center">Status:</span>
-            {(["All", "Active", "Frozen", "Pending"] as const).map((item) => (
-              <Button
-                key={item}
-                variant={status === item ? "primary" : "ghost"}
-                size="sm"
-                onClick={() => setStatus(item)}
-              >
-                {item}
-              </Button>
-            ))}
+                {(["All", "Active", "Inactive", "Pending"] as const).map((item) => (
+                  <Button
+                    key={item}
+                    variant={status === item.toLowerCase() || (status === "" && item === "All") ? "primary" : "ghost"}
+                    size="sm"
+                    onClick={() => setStatus(item === "All" ? "" : item.toLowerCase())}
+                  >
+                    {item}
+                  </Button>
+                ))}
               </div>
             )}
           </div>
         </div>
 
         {/* Desktop Table */}
-     <div className="hidden sm:block">
-  <div className="overflow-x-auto rounded-lg border border-slate-200">
-    <table className="min-w-full table-fixed">
-      <thead className="bg-slate-100 text-sm text-slate-700">
-        <tr>
-          <th className="p-3 text-left w-40">Name</th>
-          <th className="p-3 text-left w-48">Email</th>
-          <th className="p-3 text-left w-24">Role</th>
-          <th className="p-3 text-left w-32">Number</th>
-          <th className="p-3 text-left w-28">Plan</th>
-          <th className="p-3 text-left w-28">Status</th>
-          <th className="p-3 text-left w-32">Start date</th>
-          <th className="p-3 text-left w-32">End date</th>
-          <th className="p-3 text-left w-32">Next billing</th>
-          <th className="p-3 text-left w-20"></th>
-        </tr>
-      </thead>
+        <div className="hidden sm:block">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="min-w-full table-fixed">
+              <thead className="bg-slate-100 text-sm text-slate-700">
+                <tr>
+                  <th className="p-3 text-left w-40">Name</th>
+                  <th className="p-3 text-left w-48">Email</th>
+                  <th className="p-3 text-left w-24">Role</th>
+                  <th className="p-3 text-left w-32">Number</th>
+                  <th className="p-3 text-left w-28">Plan</th>
+                  <th className="p-3 text-left w-28">Status</th>
+                  <th className="p-3 text-left w-32">Start date</th>
+                  <th className="p-3 text-left w-32">End date</th>
+                  <th className="p-3 text-left w-32">Next billing</th>
+                  <th className="p-3 text-left w-20"></th>
+                </tr>
+              </thead>
 
-      <tbody>
-        {loading ? (
-          <tr>
-            <td colSpan={10} className="p-8 text-center text-slate-500">
-              Loading users...
-            </td>
-          </tr>
-        ) : filtered.length === 0 ? (
-          <tr>
-            <td colSpan={10} className="p-8 text-center text-slate-500">
-              No users found
-            </td>
-          </tr>
-        ) : (
-          filtered.map((m) => (
-            <tr key={m._id} className="border-t text-sm">
-            <td className="p-3">
-                <ProfileCell name={m.name} id={m._id} />
-            </td>
-            <td className="p-3 text-slate-600">{m.email ?? "—"}</td>
-              <td className="p-3">
-                {m.role && (
-                  <span className={`badge ${roleColors[m.role] || 'bg-slate-100 text-slate-700'}`}>
-                    {roleLabels[m.role] || m.role}
-                  </span>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={10} className="p-8 text-center text-slate-500">
+                      Loading users...
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="p-8 text-center text-slate-500">
+                      No users found
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((m) => (
+                    <tr key={m._id} className="border-t text-sm">
+                      <td className="p-3">
+                        <ProfileCell name={m.name} id={m._id} />
+                      </td>
+                      <td className="p-3 text-slate-600">{m.email ?? "—"}</td>
+                      <td className="p-3">
+                        {m.role && (
+                          <span className={`badge ${roleColors[m.role] || 'bg-slate-100 text-slate-700'}`}>
+                            {roleLabels[m.role] || m.role}
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 text-slate-600">{m.phone ?? "—"}</td>
+                      <td className="p-3 text-slate-600">{m.plan ?? "—"}</td>
+                      <td className="p-3">
+                        <div className="flex flex-col gap-1">
+                          <span className={`badge ${statusColors[m.status || (m.isActive ? 'active' : 'inactive')]}`}>
+                            {m.status ? (m.status.charAt(0).toUpperCase() + m.status.slice(1)) : (m.isActive ? 'Active' : 'Inactive')}
+                          </span>
+                          {m.role === 'member' && m.membershipEndDate && isExpiringSoon(m.membershipEndDate) && (
+                            <span className="badge bg-amber-50 text-amber-700 text-xs">Expiring in 7 days</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3 text-slate-600">
+                        {m.membershipStartDate ? formatDate(new Date(m.membershipStartDate).toISOString().slice(0, 10)) : "—"}
+                      </td>
+                      <td className="p-3 text-slate-600">
+                        <div className="flex flex-col gap-1">
+                          {m.membershipEndDate ? formatDate(new Date(m.membershipEndDate).toISOString().slice(0, 10)) : "—"}
+                          {m.role === 'member' && m.membershipEndDate && isExpiringSoon(m.membershipEndDate) && (
+                            <span className="text-xs text-amber-700 font-semibold">⚠️ Expiring soon</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3 text-slate-600">
+                        {m.nextBillingDate ? formatDate(new Date(m.nextBillingDate).toISOString().slice(0, 10)) : "—"}
+                      </td>
+                      <td className="p-3">
+                        <button
+                          onClick={() => setSelected(m)}
+                          className="text-emerald-700 font-semibold hover:underline"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))
                 )}
-              </td>
-            <td className="p-3 text-slate-600">{m.phone ?? "—"}</td>
-            <td className="p-3 text-slate-600">{m.plan ?? "—"}</td>
-              <td className="p-3">
-                <div className="flex flex-col gap-1">
-                  <span className={`badge ${statusColors[m.status || (m.isActive ? 'active' : 'inactive')]}`}>
-                    {m.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                  {m.role === 'member' && m.membershipEndDate && isExpiringSoon(m.membershipEndDate) && (
-                    <span className="badge bg-amber-50 text-amber-700 text-xs">Expiring in 7 days</span>
-                  )}
-                </div>
-              </td>
-            <td className="p-3 text-slate-600">
-                {m.membershipStartDate ? formatDate(new Date(m.membershipStartDate).toISOString().slice(0, 10)) : "—"}
-            </td>
-            <td className="p-3 text-slate-600">
-                <div className="flex flex-col gap-1">
-                  {m.membershipEndDate ? formatDate(new Date(m.membershipEndDate).toISOString().slice(0, 10)) : "—"}
-                  {m.role === 'member' && m.membershipEndDate && isExpiringSoon(m.membershipEndDate) && (
-                    <span className="text-xs text-amber-700 font-semibold">⚠️ Expiring soon</span>
-                  )}
-                </div>
-            </td>
-            <td className="p-3 text-slate-600">
-                {m.nextBillingDate ? formatDate(new Date(m.nextBillingDate).toISOString().slice(0, 10)) : "—"}
-            </td>
-            <td className="p-3">
-                <button
-                  onClick={() => setSelected(m)}
-                  className="text-emerald-700 font-semibold hover:underline"
-              >
-                View
-                </button>
-            </td>
-          </tr>
-          ))
-        )}
-      </tbody>
-    </table>
-  </div>
-</div>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
 
         {/* Mobile Cards */}
-      <div className="sm:hidden divide-y divide-slate-200">
+        <div className="sm:hidden divide-y divide-slate-200">
           {loading ? (
             <div className="px-4 py-8 text-center text-slate-500">Loading users...</div>
           ) : filtered.length === 0 ? (
@@ -922,20 +922,20 @@ export default function MembersPage() {
           ) : (
             filtered.map((m) => (
               <div key={m._id} className="px-4 py-3 space-y-2">
-              <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between">
                   <ProfileCell name={m.name} id={m._id} />
-                <button
-                  onClick={() => setSelected(m)}
-                  className="text-sm font-semibold text-emerald-700"
-                >
-                  View
-                </button>
-              </div>
+                  <button
+                    onClick={() => setSelected(m)}
+                    className="text-sm font-semibold text-emerald-700"
+                  >
+                    View
+                  </button>
+                </div>
 
-              <div className="grid grid-cols-2 text-xs gap-y-1 text-slate-600">
-                <LabelValue label="Email" value={m.email} />
+                <div className="grid grid-cols-2 text-xs gap-y-1 text-slate-600">
+                  <LabelValue label="Email" value={m.email} />
                   <LabelValue label="Role" value={m.role ? roleLabels[m.role] || m.role : "—"} />
-                <LabelValue label="Phone" value={m.phone ?? "—"} />
+                  <LabelValue label="Phone" value={m.phone ?? "—"} />
                   <LabelValue label="Plan" value={m.plan ?? "—"} />
                   <LabelValue label="Status" value={m.isActive ? 'Active' : 'Inactive'} />
                   <LabelValue label="Start" value={m.membershipStartDate ? formatDate(new Date(m.membershipStartDate).toISOString().slice(0, 10)) : "—"} />
@@ -947,8 +947,8 @@ export default function MembersPage() {
                         {m.role === 'member' && m.membershipEndDate && isExpiringSoon(m.membershipEndDate) && (
                           <span className="badge bg-amber-50 text-amber-700 text-xs">⚠️ Expiring in 7 days</span>
                         )}
-              </div>
-            </div>
+                      </div>
+                    </div>
                   </div>
                   <LabelValue label="Next bill" value={m.nextBillingDate ? formatDate(new Date(m.nextBillingDate).toISOString().slice(0, 10)) : "—"} />
                 </div>
@@ -974,7 +974,7 @@ export default function MembersPage() {
         {selected && (
           <div className="space-y-3 text-sm">
             <InfoRow
-              label="Role" 
+              label="Role"
               value={selected.role ? roleLabels[selected.role] || selected.role : "—"}
               badgeClass={selected.role ? roleColors[selected.role] : undefined}
             />
@@ -1017,7 +1017,6 @@ export default function MembersPage() {
         title={editing ? "Edit member" : "Add User"}
       >
         <div className="space-y-3">
-
           <Input
             label="Full name"
             value={form.name}
@@ -1030,7 +1029,6 @@ export default function MembersPage() {
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
           />
-          
 
           {!editing && (
             <div>
@@ -1058,45 +1056,77 @@ export default function MembersPage() {
 
           {form.role === 'member' && (
             <>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              label="Age"
-              type="number"
-              placeholder="e.g., 25"
-              value={form.age}
-              onChange={(e) => setForm((f) => ({ ...f, age: e.target.value }))}
-              min="1"
-              max="150"
-            />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  label="Age"
+                  type="number"
+                  placeholder="e.g., 25"
+                  value={form.age}
+                  onChange={(e) => setForm((f) => ({ ...f, age: e.target.value }))}
+                  min="1"
+                  max="150"
+                />
+                <Input
+                  label="Weight (kg)"
+                  type="number"
+                  placeholder="e.g., 70"
+                  value={form.weight}
+                  onChange={(e) => setForm((f) => ({ ...f, weight: e.target.value }))}
+                  min="1"
+                  max="300"
+                />
+              </div>
 
-            <Input
-              label="Weight (kg)"
-              type="number"
-              placeholder="e.g., 70"
-              value={form.weight}
-              onChange={(e) => setForm((f) => ({ ...f, weight: e.target.value }))}
-              min="1"
-              max="1000"
-              step="0.1"
-            />
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              label="Plan"
-              value={form.plan}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  label="Plan"
+                  placeholder="Standard / Plus / Premium"
+                  value={form.plan}
                   onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))}
-                  required
-            />
+                />
+                <Input
+                  label="Status"
+                  placeholder="Active"
+                  value={form.status}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      status: e.target.value,
+                    }))
+                  }
+                />
+              </div>
 
-            <Input
-                  label="Class"
-                  placeholder="e.g., Yoga, CrossFit"
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  label="Start date"
+                  type="date"
+                  value={form.membershipStartDate}
+                  onChange={(e) => handleStartDateChange(e.target.value)}
+                />
+                <Input
+                  label="End date"
+                  type="date"
+                  value={form.membershipEndDate}
+                  onChange={(e) => setForm((f) => ({ ...f, membershipEndDate: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  label="Next billing date"
+                  type="date"
+                  value={form.nextBillingDate}
+                  readOnly
+                  className="bg-slate-50"
+                />
+                <Input
+                  label="Class Name"
+                  placeholder="e.g. Yoga, HIIT"
                   value={form.className}
                   onChange={(e) => setForm((f) => ({ ...f, className: e.target.value }))}
-                  required
-            />
-          </div>
+                />
+              </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
@@ -1110,13 +1140,15 @@ export default function MembersPage() {
                   >
                     <option value="Cardio">Cardio</option>
                     <option value="Strength">Strength</option>
-                    <option value="Yoga">Yoga</option>
+                    <option value="Flexibility">Flexibility</option>
+                    <option value="HIIT">HIIT</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Difficulty Level
+                    Difficulty
                   </label>
                   <select
                     value={form.difficultyLevel}
@@ -1129,61 +1161,17 @@ export default function MembersPage() {
                   </select>
                 </div>
               </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              label="Start date"
-              type="date"
-                  value={form.membershipStartDate}
-                  onChange={(e) => handleStartDateChange(e.target.value)}
-                  required
-            />
-
-            <Input
-              label="End date"
-              type="date"
-                  value={form.membershipEndDate}
-                  onChange={(e) => setForm((f) => ({ ...f, membershipEndDate: e.target.value }))}
-                  required
-            />
-          </div>
-
-          <Input
-                label="Status"
-                value={form.status}
-                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-              />
-
-              {form.nextBillingDate && (
-                <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm">
-                  <span className="font-semibold text-blue-900">Next Billing Date (Auto-calculated): </span>
-                  <span className="text-blue-700">{new Date(form.nextBillingDate).toLocaleDateString()}</span>
-                  <p className="text-xs text-blue-600 mt-1">30 days from start date</p>
-                </div>
-              )}
-
-              {isExpiringSoon(form.membershipEndDate) && (
-                <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm">
-                  <span className="font-semibold text-amber-900">⚠️ Warning: </span>
-                  <span className="text-amber-800">Membership expiring in 7 days or less</span>
-          </div>
-              )}
             </>
           )}
 
-
           <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setOpenCreate(false);
-                setEditing(null);
-                resetForm();
-              }}
-            >
+            <Button variant="ghost" onClick={() => {
+              setOpenCreate(false);
+              setEditing(null);
+              resetForm();
+            }}>
               Cancel
             </Button>
-
             <Button onClick={handleSave}>
               {editing ? "Save changes" : "Add member"}
             </Button>
@@ -1191,24 +1179,30 @@ export default function MembersPage() {
         </div>
       </Modal>
 
-      {/* Delete Confirm Modal */}
       <Modal
-        open={!!confirmDelete}
+        open={Boolean(confirmDelete)}
         onClose={() => setConfirmDelete(null)}
         title="Remove member"
         footer={
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>Cancel</Button>
-            <Button variant="secondary" onClick={handleDelete}>Delete member</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>
+              Cancel
+            </Button>
+            <Button variant="secondary" onClick={handleDelete}>
+              Delete member
+            </Button>
           </div>
         }
       >
         <p className="text-sm text-slate-700">
           Are you sure you want to remove{" "}
-          <span className="font-semibold">{confirmDelete?.name}</span>?
+          <span className="font-semibold">
+            {confirmDelete?.name}
+          </span>{" "}
+          from the roster? This action only affects this mock UI.
         </p>
       </Modal>
-    </div>
+    </div >
   );
 }
 
@@ -1233,9 +1227,9 @@ function ProfileCell({
   return (
     <div className="flex items-center gap-3">
       <div className="relative h-10 w-10 rounded-full overflow-hidden bg-slate-200">
-          <div className="grid h-full w-full place-items-center text-sm font-semibold text-slate-700">
-            {initials}
-          </div>
+        <div className="grid h-full w-full place-items-center text-sm font-semibold text-slate-700">
+          {initials}
+        </div>
       </div>
 
       <div>

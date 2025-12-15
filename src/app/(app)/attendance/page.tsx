@@ -1,49 +1,99 @@
- "use client";
+"use client";
 
 import { Card } from "@/components/ui/card";
 import { TableRow } from "@/components/ui/table-row";
 import { attendanceDays, attendanceSummary } from "@/data/attendance";
-import { classes } from "@/data/classes";
-import { membersApi, Member } from "@/lib/api";
+import { membersApi, Member, attendanceApi, sessionsApi, Session } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 
 export default function AttendancePage() {
-  const [selectedClassId, setSelectedClassId] = useState(classes[0]?.id);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [presentIds, setPresentIds] = useState<Set<string>>(new Set());
   const [participants, setParticipants] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const selectedClass = useMemo(
-    () => classes.find((c) => c.id === selectedClassId) ?? classes[0],
-    [selectedClassId]
+  const selectedSession = useMemo(
+    () => sessions.find((s) => s._id === selectedSessionId) ?? sessions[0],
+    [sessions, selectedSessionId]
   );
 
   useEffect(() => {
-    const loadParticipants = async () => {
+    const loadInitialData = async () => {
       try {
         setLoading(true);
-        const [traineesRes, trainersRes] = await Promise.all([
+        const [traineesRes, trainersRes, sessionsRes] = await Promise.all([
           membersApi.getAll(undefined, undefined, "member"),
           membersApi.getAll(undefined, undefined, "trainer"),
+          sessionsApi.getAll(),
         ]);
 
         const trainees = traineesRes.success && traineesRes.data ? traineesRes.data : [];
         const trainers = trainersRes.success && trainersRes.data ? trainersRes.data : [];
+        const fetchedSessions = sessionsRes.success && sessionsRes.data ? sessionsRes.data : [];
 
         setParticipants([
           ...trainees.map((t) => ({ ...t, role: "member" as const })),
           ...trainers.map((t) => ({ ...t, role: "trainer" as const })),
         ]);
+
+        setSessions(fetchedSessions);
+
+        if (fetchedSessions.length > 0) {
+          // Find today's session or the next upcoming one
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const upcomingSession = fetchedSessions.find(s => {
+            const sessionDate = new Date(s.date);
+            sessionDate.setHours(0, 0, 0, 0);
+            return sessionDate.getTime() >= today.getTime();
+          });
+
+          // If no upcoming session, use the last one (most recent past)
+          // If upcoming found, use that.
+          // Otherwise default to first (oldest) as fallback
+          const defaultSession = upcomingSession || fetchedSessions[fetchedSessions.length - 1] || fetchedSessions[0];
+
+          setSelectedSessionId(defaultSession._id);
+        }
       } catch (err) {
-        console.error("Error loading participants:", err);
+        console.error("Error loading initial data:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    loadParticipants();
+    loadInitialData();
   }, []);
+
+  useEffect(() => {
+    const loadAttendance = async () => {
+      if (!selectedSessionId) return;
+
+      try {
+        // Don't set global loading here to avoid flickering the whole list
+        // just for attendance update, or handle it gracefully
+        const attendanceRes = await attendanceApi.getBySession(selectedSessionId);
+        if (attendanceRes.success && attendanceRes.data) {
+          const present = new Set<string>();
+          attendanceRes.data.forEach((record: any) => {
+            if (record.isPresent && record.memberId) {
+              present.add(record.memberId._id || record.memberId);
+            }
+          });
+          setPresentIds(present);
+        } else {
+          setPresentIds(new Set());
+        }
+      } catch (err) {
+        console.error("Error loading attendance:", err);
+      }
+    };
+
+    loadAttendance();
+  }, [selectedSessionId]);
 
   const activeParticipants = useMemo(
     () =>
@@ -51,8 +101,8 @@ export default function AttendancePage() {
         if (p.role === "member") {
           return p.status?.toLowerCase() !== "inactive" && p.isActive !== false;
         }
-        // Keep trainers always visible
-        return true;
+        // Only show members (trainees)
+        return false;
       }),
     [participants]
   );
@@ -63,13 +113,32 @@ export default function AttendancePage() {
     ? Math.round((presentCount / totalCount) * 100)
     : 0;
 
-  const togglePresent = (id: string) => {
+  const togglePresent = async (id: string) => {
+    if (!selectedSessionId) return;
+
+    const isPresent = !presentIds.has(id);
+
+    // Optimistic update
     setPresentIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+
+    try {
+      await attendanceApi.mark(selectedSessionId, id, isPresent);
+    } catch (error) {
+      console.error("Error marking attendance:", error);
+      // Revert on error
+      setPresentIds((prev) => {
+        const next = new Set(prev);
+        if (isPresent) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+      alert("Failed to save attendance");
+    }
   };
 
   return (
@@ -94,13 +163,14 @@ export default function AttendancePage() {
                 </p>
               </div>
               <select
-                value={selectedClass?.id}
-                onChange={(e) => setSelectedClassId(e.target.value)}
+                value={selectedSession?._id || ""}
+                onChange={(e) => setSelectedSessionId(e.target.value)}
                 className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-inner outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               >
-                {classes.map((cls) => (
-                  <option key={cls.id} value={cls.id}>
-                    {cls.title} — {cls.time}
+                {sessions.length === 0 && <option value="">No sessions found</option>}
+                {sessions.map((cls) => (
+                  <option key={cls._id} value={cls._id}>
+                    {cls.name} — {new Date(cls.date).toLocaleDateString()} {cls.startTime}
                   </option>
                 ))}
               </select>
@@ -111,32 +181,45 @@ export default function AttendancePage() {
                 Mark attendance
               </p>
               <p className="text-xs text-slate-500">
-                Trainees and trainers are listed. Tap to toggle present (client-side).
+                Trainees are listed. Tap to toggle present (saved to DB).
               </p>
+
+              {sessions.length === 0 && (
+                <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 border border-amber-200">
+                  No classes found. Please create a class in the dashboard or database to mark attendance.
+                </div>
+              )}
+
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {loading ? (
                   <p className="text-sm text-slate-500">Loading attendees...</p>
                 ) : activeParticipants.length === 0 ? (
-                  <p className="text-sm text-slate-500">No trainees or trainers found.</p>
+                  <p className="text-sm text-slate-500">No trainees found.</p>
                 ) : (
                   activeParticipants.map((person) => (
                     <button
                       key={person._id}
                       onClick={() => togglePresent(person._id)}
-                      className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition ${
-                        presentIds.has(person._id)
-                          ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                      disabled={!selectedSessionId}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition ${presentIds.has(person._id)
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                        : !selectedSessionId
+                          ? "border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed"
                           : "border-slate-200 bg-white text-slate-700 hover:border-blue-200"
-                      }`}
+                        }`}
                     >
                       <div className="flex flex-col">
                         <span className="font-semibold">{person.name}</span>
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs opacity-80">
                           {person.role === "trainer" ? "Trainer" : "Trainee"}
                         </span>
                       </div>
-                      <span className="text-xs">
-                        {presentIds.has(person._id) ? "Present" : "Tap to mark"}
+                      <span className="text-xs font-medium">
+                        {presentIds.has(person._id)
+                          ? "Present"
+                          : !selectedSessionId
+                            ? "No Class"
+                            : "Tap to mark"}
                       </span>
                     </button>
                   ))
@@ -152,7 +235,7 @@ export default function AttendancePage() {
                   Attendance stats
                 </p>
                 <span className="badge bg-indigo-50 text-indigo-700">
-                  {selectedClass?.title}
+                  {selectedSession?.name || "No Session"}
                 </span>
               </div>
               <div className="mt-4 space-y-2 text-sm text-slate-600">
@@ -192,19 +275,19 @@ export default function AttendancePage() {
                 Quick class info
               </p>
               <p className="text-xs text-slate-500">
-                Coach {selectedClass?.coach} · {selectedClass?.time}
+                Coach {typeof selectedSession?.trainer === 'object' ? (selectedSession.trainer as any).name : selectedSession?.trainer || "Unknown"} · {selectedSession?.startTime || "N/A"}
               </p>
               <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
                 <div className="flex items-center justify-between">
                   <span>Capacity</span>
                   <span className="font-semibold">
-                    {selectedClass?.capacity} spots
+                    {selectedSession?.capacity || 0} spots
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Currently booked</span>
                   <span className="font-semibold text-blue-700">
-                    {selectedClass?.booked}
+                    {presentCount}
                   </span>
                 </div>
               </div>
@@ -212,46 +295,6 @@ export default function AttendancePage() {
           </div>
         </div>
       </Card>
-
-      <Card title="Daily activity">
-        <div className="space-y-2">
-          <TableRow
-            header
-            cells={[
-              "Date",
-              "Total check-ins",
-              "New members",
-              "Peak hour",
-              "Notes",
-            ]}
-            className="grid-cols-[0.8fr,1fr,1fr,0.8fr,1.4fr]"
-          />
-          {attendanceDays.map((day) => (
-            <TableRow
-              key={day.date}
-              cells={[
-                <span key="date" className="font-semibold text-slate-900">
-                  {formatDate(day.date)}
-                </span>,
-                <span key="checkins" className="text-sm font-semibold">
-                  {day.checkIns}
-                </span>,
-                <span key="new" className="text-sm text-slate-600">
-                  +{day.newMembers}
-                </span>,
-                <span key="peak" className="text-sm text-slate-600">
-                  {day.peakHour}
-                </span>,
-                <span key="notes" className="text-sm text-slate-600">
-                  {day.notes ?? "—"}
-                </span>,
-              ]}
-              className="grid-cols-[0.8fr,1fr,1fr,0.8fr,1.4fr]"
-            />
-          ))}
-        </div>
-      </Card>
     </div>
   );
 }
-
