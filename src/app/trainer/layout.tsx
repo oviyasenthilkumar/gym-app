@@ -12,15 +12,17 @@ export default function TrainerLayout({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
+    setMounted(true);
     const user = getUser();
     if (!user) {
       router.push("/login");
       return;
     }
-    
+
     // Only allow trainer users to access trainer pages
     if (user.role !== 'trainer') {
       // Redirect based on role
@@ -33,6 +35,9 @@ export default function TrainerLayout({
       }
     }
   }, [router]);
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) return null;
 
   const user = getUser();
   if (!user || user.role !== 'trainer') {

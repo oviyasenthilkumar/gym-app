@@ -363,6 +363,10 @@ export const attendanceApi = {
   getBySession: async (sessionId: string): Promise<ApiResponse<any[]>> => {
     return apiRequest<any[]>(`/attendance/session/${sessionId}`);
   },
+
+  getMemberHistory: async (): Promise<ApiResponse<any[]>> => {
+    return apiRequest<any[]>('/attendance/member');
+  },
 };
 
 // Trainers API

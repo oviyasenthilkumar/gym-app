@@ -4,17 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { ClassItem } from "@/data/classes";
+import { Plus, Edit, Trash2, Calendar, Users, XCircle } from "lucide-react";
 import { sessionsApi, trainersApi, Session } from "@/lib/api";
 import { useMemo, useState, useEffect } from "react";
 
-const levelColors = {
-  Beginner: "bg-emerald-50 text-emerald-700",
-  Intermediate: "bg-blue-50 text-blue-700",
-  Advanced: "bg-rose-50 text-rose-700",
+// Utility colors for status badges
+const statusStyles = {
+  Scheduled: "bg-blue-50 text-blue-700",
+  Cancelled: "bg-rose-50 text-rose-700",
+  Completed: "bg-emerald-50 text-emerald-700",
 };
 
 export default function ClassesPage() {
+  // Data & UI state
   const [list, setList] = useState<Session[]>([]);
   const [trainers, setTrainers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,46 +34,38 @@ export default function ClassesPage() {
     status: "Scheduled",
   });
 
+  // Load sessions
   useEffect(() => {
-    const loadSessions = async () => {
+    const load = async () => {
       try {
         setLoading(true);
         const status = statusFilter === "All" ? undefined : statusFilter;
-        const response = await sessionsApi.getAll(undefined, undefined, status);
-        if (response.success && response.data) {
-          setList(response.data);
-        }
-      } catch (error) {
-        console.error("Error loading sessions:", error);
+        const res = await sessionsApi.getAll(undefined, undefined, status);
+        if (res.success && res.data) setList(res.data);
+      } catch (e) {
+        console.error("Failed to load sessions", e);
       } finally {
         setLoading(false);
       }
     };
-
-    loadSessions();
+    load();
   }, [statusFilter]);
 
+  // Load trainers once
   useEffect(() => {
-    const loadTrainers = async () => {
+    const load = async () => {
       try {
-        const response = await trainersApi.getAll();
-        if (response.success && response.data) {
-          setTrainers(response.data);
-        }
-      } catch (error) {
-        console.error("Error loading trainers:", error);
+        const res = await trainersApi.getAll();
+        if (res.success && res.data) setTrainers(res.data);
+      } catch (e) {
+        console.error("Failed to load trainers", e);
       }
     };
-    loadTrainers();
+    load();
   }, []);
 
   const filtered = useMemo(() => {
-    return list.filter((cls) => {
-      const matchesQuery = cls.name
-        .toLowerCase()
-        .includes(query.toLowerCase());
-      return matchesQuery;
-    });
+    return list.filter((cls) => cls.name.toLowerCase().includes(query.toLowerCase()));
   }, [query, list]);
 
   const resetForm = () => {
@@ -86,57 +80,11 @@ export default function ClassesPage() {
     });
   };
 
-  const handleSave = async () => {
-    if (!form.name || !form.trainer || !form.date || !form.startTime || !form.location) return;
-    try {
-      if (editing) {
-        const response = await sessionsApi.update(editing._id, {
-          name: form.name,
-          trainer: form.trainer,
-          date: form.date,
-          startTime: form.startTime,
-          capacity: form.capacity,
-          location: form.location,
-          status: form.status as any,
-        });
-        if (response.success) {
-          // Reload sessions
-          const sessionsResponse = await sessionsApi.getAll();
-          if (sessionsResponse.success && sessionsResponse.data) {
-            setList(sessionsResponse.data);
-          }
-          setEditing(null);
-        }
-      } else {
-        const response = await sessionsApi.create({
-          name: form.name,
-          trainer: form.trainer,
-          date: form.date,
-          startTime: form.startTime,
-          capacity: form.capacity,
-          location: form.location,
-        });
-        if (response.success) {
-          // Reload sessions
-          const sessionsResponse = await sessionsApi.getAll();
-          if (sessionsResponse.success && sessionsResponse.data) {
-            setList(sessionsResponse.data);
-          }
-        }
-      }
-      resetForm();
-      setOpenModal(false);
-    } catch (error: any) {
-      console.error("Error saving session:", error);
-      alert(error.message || "Failed to save session");
-    }
-  };
-
   const startEdit = (cls: Session) => {
     setEditing(cls);
     setForm({
       name: cls.name,
-      trainer: typeof cls.trainer === 'object' ? cls.trainer._id : cls.trainer,
+      trainer: typeof cls.trainer === "object" ? cls.trainer._id : cls.trainer,
       capacity: cls.capacity,
       date: cls.date ? new Date(cls.date).toISOString().slice(0, 10) : "",
       startTime: cls.startTime,
@@ -146,151 +94,151 @@ export default function ClassesPage() {
     setOpenModal(true);
   };
 
-  const handleCancel = async (id: string) => {
+  const handleSave = async () => {
+    if (!form.name || !form.trainer || !form.date || !form.startTime || !form.location) {
+      alert("Please fill all required fields");
+      return;
+    }
     try {
-      const response = await sessionsApi.cancel(id);
-      if (response.success) {
-        // Reload sessions
-        const sessionsResponse = await sessionsApi.getAll();
-        if (sessionsResponse.success && sessionsResponse.data) {
-          setList(sessionsResponse.data);
+      if (editing) {
+        const res = await sessionsApi.update(editing._id, { ...form });
+        if (res.success) {
+          const fresh = await sessionsApi.getAll();
+          if (fresh.success && fresh.data) setList(fresh.data);
+        }
+      } else {
+        const res = await sessionsApi.create({
+          name: form.name,
+          trainer: form.trainer,
+          capacity: form.capacity,
+          date: form.date,
+          startTime: form.startTime,
+          location: form.location,
+        });
+        if (res.success) {
+          const fresh = await sessionsApi.getAll();
+          if (fresh.success && fresh.data) setList(fresh.data);
         }
       }
-    } catch (error: any) {
-      console.error("Error cancelling session:", error);
-      alert(error.message || "Failed to cancel session");
+      resetForm();
+      setOpenModal(false);
+      setEditing(null);
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || "Failed to save class");
+    }
+  };
+
+  const handleCancel = async (id: string) => {
+    if (!confirm("Cancel this class?")) return;
+    try {
+      const res = await sessionsApi.cancel(id);
+      if (res.success) {
+        const fresh = await sessionsApi.getAll();
+        if (fresh.success && fresh.data) setList(fresh.data);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || "Failed to cancel class");
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this class? This action cannot be undone.")) return;
+    if (!confirm("Delete this class permanently?")) return;
     try {
-      const response = await sessionsApi.delete(id);
-      if (response.success) {
-        // Reload sessions
-        const sessionsResponse = await sessionsApi.getAll();
-        if (sessionsResponse.success && sessionsResponse.data) {
-          setList(sessionsResponse.data);
-        }
+      const res = await sessionsApi.delete(id);
+      if (res.success) {
+        const fresh = await sessionsApi.getAll();
+        if (fresh.success && fresh.data) setList(fresh.data);
       }
-    } catch (error: any) {
-      console.error("Error deleting session:", error);
-      alert(error.message || "Failed to delete session");
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || "Failed to delete class");
     }
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-blue-700">Classes</p>
-          <h2 className="text-xl font-semibold text-slate-900">
-            Schedule & capacity
-          </h2>
+    <div className="max-w-7xl mx-auto p-4 space-y-6">
+      {/* Header */}
+      <header className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-6 w-6 text-slate-600" />
+          <h1 className="text-2xl font-bold text-slate-900">Classes</h1>
         </div>
-        <Button onClick={() => setOpenModal(true)}>+ New class</Button>
+        <Button onClick={() => setOpenModal(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-2xl transition-shadow">
+          <Plus className="h-4 w-4" /> New class
+        </Button>
+      </header>
+
+      {/* Filters */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <Input
+          placeholder="Search classes"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          leading="🔎"
+          className="md:max-w-xs"
+        />
+        <div className="flex flex-wrap gap-2">
+          {(["All", "Scheduled", "Cancelled", "Completed"] as const).map((item) => (
+            <Button
+              key={item}
+              variant={statusFilter === item ? "primary" : "ghost"}
+              size="sm"
+              onClick={() => setStatusFilter(item)}
+            >
+              {item}
+            </Button>
+          ))}
+        </div>
       </div>
 
-      <Card>
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <Input
-            placeholder="Search classes"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            leading="🔎"
-            className="md:max-w-xs"
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            {(["All", "Scheduled", "Cancelled", "Completed"] as const).map(
-              (item) => (
-                <Button
-                  key={item}
-                  variant={statusFilter === item ? "primary" : "ghost"}
-                  size="sm"
-                  onClick={() => setStatusFilter(item)}
-                >
-                  {item}
-                </Button>
-              )
-            )}
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {loading ? (
-            <div className="col-span-full text-center text-slate-500 py-8">
-              Loading classes...
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="col-span-full text-center text-slate-500 py-8">
-              No classes found
-            </div>
-          ) : (
-            filtered.map((cls) => {
-              return (
-                <div
-                  key={cls._id}
-                  className="card-surface space-y-3 p-4 transition hover:-translate-y-0.5 hover:shadow-lg"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">
-                        {cls.name}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Trainer {typeof cls.trainer === 'object' ? cls.trainer.name : cls.trainer}
-                      </p>
-                    </div>
-                    <span className={`badge ${cls.status === 'Scheduled' ? 'bg-blue-50 text-blue-700' :
-                      cls.status === 'Cancelled' ? 'bg-rose-50 text-rose-700' :
-                        'bg-emerald-50 text-emerald-700'
-                      }`}>
-                      {cls.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-600">
-                    <span>
-                      {new Date(cls.date).toLocaleDateString()} {cls.startTime} · {cls.location || 'N/A'}
-                    </span>
-                    <div className="flex gap-2 text-xs font-semibold">
-                      <button
-                        className="text-blue-700 hover:underline"
-                        onClick={() => startEdit(cls)}
-                      >
-                        Edit
-                      </button>
-                      {cls.status !== 'Cancelled' && (
-                        <button
-                          className="text-rose-600 hover:underline"
-                          onClick={() => handleCancel(cls._id)}
-                        >
-                          Cancel
-                        </button>
-                      )}
-                      <button
-                        className="text-red-600 hover:underline"
-                        onClick={() => handleDelete(cls._id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                  <div className="rounded-xl bg-slate-100 p-3">
-                    <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-                      <span>Capacity</span>
-                      <span>{cls.capacity} spots</span>
-                    </div>
-                    <p className="mt-2 text-xs text-slate-500">
-                      Capacity: {cls.capacity}
-                    </p>
-                  </div>
+      {/* Class Grid */}
+      {loading ? (
+        <p className="text-center text-slate-500 py-8">Loading classes…</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-center text-slate-500 py-8">No classes found.</p>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((cls) => (
+            <Card key={cls._id} className="relative hover:shadow-xl transition-shadow overflow-hidden bg-white bg-opacity-80 backdrop-filter backdrop-blur-lg transform hover:scale-105 transition-all duration-300">
+              {/* Status badge */}
+              <span
+                className={`absolute top-2 right-2 px-2 py-1 text-xs rounded ${statusStyles[cls.status as keyof typeof statusStyles]}`}
+              >
+                {cls.status}
+              </span>
+              <div className="p-4 space-y-3">
+                <h2 className="text-lg font-semibold text-slate-900">{cls.name}</h2>
+                <p className="text-sm text-slate-500">
+                  Trainer: {cls.trainer && typeof cls.trainer === "object" ? cls.trainer.name : (cls.trainer || 'Unknown')}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {new Date(cls.date).toLocaleDateString()} {cls.startTime} • {cls.location || "N/A"}
+                </p>
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <Users className="h-4 w-4" /> {cls.capacity} spots
                 </div>
-              );
-            })
-          )}
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="ghost" size="sm" onClick={() => startEdit(cls)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  {cls.status !== "Cancelled" && (
+                    <Button variant="ghost" size="sm" onClick={() => handleCancel(cls._id)}>
+                      <XCircle className="h-4 w-4 text-rose-600" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => handleDelete(cls._id)}>
+                    <Trash2 className="h-4 w-4 text-rose-600" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
         </div>
-      </Card>
+      )}
 
+      {/* Modal for Create / Edit */}
       <Modal
         open={openModal}
         onClose={() => {
@@ -300,25 +248,17 @@ export default function ClassesPage() {
         }}
         title={editing ? "Edit class" : "Create class"}
       >
-        <div className="space-y-3">
-          <Input
-            label="Class name"
-            placeholder="e.g. Strength Foundations"
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          />
+        <div className="space-y-4">
+          <Input label="Class name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <div className="grid gap-3 sm:grid-cols-2">
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Trainer
-              </label>
+            <div>
+              <label className="text-sm font-medium">Trainer</label>
               <select
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-md border border-slate-200 p-2"
                 value={form.trainer}
-                onChange={(e) => setForm((f) => ({ ...f, trainer: e.target.value }))}
+                onChange={(e) => setForm({ ...form, trainer: e.target.value })}
               >
-                <option value="">Select a trainer</option>
+                <option value="">Select trainer</option>
                 {trainers.map((t) => (
                   <option key={t._id} value={t._id}>
                     {t.name}
@@ -326,49 +266,20 @@ export default function ClassesPage() {
                 ))}
               </select>
             </div>
-            <Input
-              label="Capacity"
-              type="number"
-              placeholder="16"
-              value={form.capacity}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, capacity: Number(e.target.value) }))
-              }
-            />
+            <Input label="Capacity" type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              label="Date"
-              type="date"
-              value={form.date}
-              onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-            />
-            <Input
-              label="Start Time"
-              type="time"
-              placeholder="10:00"
-              value={form.startTime}
-              onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
-            />
+            <Input label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+            <Input label="Start Time" type="time" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
           </div>
-          <Input
-            label="Location"
-            placeholder="Studio A"
-            value={form.location}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, location: e.target.value }))
-            }
-          />
-
+          <Input label="Location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
           {editing && (
-            <div className="space-y-1">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Status
-              </label>
+            <div>
+              <label className="text-sm font-medium">Status</label>
               <select
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-md border border-slate-200 p-2"
                 value={form.status}
-                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+                onChange={(e) => setForm({ ...form, status: e.target.value })}
               >
                 <option value="Scheduled">Scheduled</option>
                 <option value="Cancelled">Cancelled</option>
@@ -376,25 +287,24 @@ export default function ClassesPage() {
               </select>
             </div>
           )}
-
           <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setOpenModal(false);
-                setEditing(null);
-                resetForm();
-              }}
-            >
+            <Button variant="ghost" onClick={() => {
+              setOpenModal(false);
+              setEditing(null);
+              resetForm();
+            }}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>
-              {editing ? "Save changes" : "Create class"}
-            </Button>
+            <Button onClick={handleSave}>{editing ? "Save changes" : "Create class"}</Button>
           </div>
         </div>
       </Modal>
+      <button
+        onClick={() => setOpenModal(true)}
+        className="fixed bottom-6 right-6 flex items-center justify-center w-12 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg hover:shadow-2xl transition-all duration-300"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
     </div>
   );
 }
-

@@ -202,7 +202,7 @@ export default function DashboardPage() {
                       </p>
                     </div>,
                     <div key="coach" className="text-sm text-slate-600">
-                      Trainer {typeof item.trainer === 'object' ? item.trainer.name : item.trainer}
+                      Trainer {item.trainer && typeof item.trainer === 'object' ? item.trainer.name : (item.trainer || 'Unknown')}
                     </div>,
                     <div key="capacity" className="text-sm font-semibold text-blue-700">
                       {item.capacity} capacity

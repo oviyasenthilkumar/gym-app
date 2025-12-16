@@ -110,15 +110,13 @@ function ToggleRow({
       <button
         type="button"
         onClick={() => onChange(!enabled)}
-        className={`relative h-7 w-12 rounded-full transition ${
-          enabled ? "bg-blue-300" : "bg-slate-300"
-        }`}
+        className={`relative h-7 w-12 rounded-full transition ${enabled ? "bg-blue-300" : "bg-slate-300"
+          }`}
         aria-pressed={enabled}
       >
         <span
-          className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition ${
-            enabled ? "translate-x-5" : ""
-          }`}
+          className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition ${enabled ? "translate-x-5" : ""
+            }`}
         />
       </button>
     </div>

@@ -180,17 +180,17 @@ export default function LoginPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   // Forgot Password Modals States
-const [showEmailModal, setShowEmailModal] = useState(false);
-const [showOtpModal, setShowOtpModal] = useState(false);
-const [showResetModal, setShowResetModal] = useState(false);
-const [showPass, setShowPass] = useState(false);
-const [showPass2, setShowPass2] = useState(false);
-const [resetEmail, setResetEmail] = useState("");
-const [otp, setOtp] = useState("");
-const [newPass, setNewPass] = useState("");
-const [confirmPass, setConfirmPass] = useState("");
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [showPass2, setShowPass2] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
 
-const [msg, setMsg] = useState("");
+  const [msg, setMsg] = useState("");
 
 
   // REGEX
@@ -217,7 +217,7 @@ const [msg, setMsg] = useState("");
       if (response.success && response.data) {
         setAuthToken(response.data.token);
         setUser(response.data.user);
-        
+
         // Redirect based on role
         const role = response.data.user.role;
         if (role === 'admin') {
@@ -238,299 +238,299 @@ const [msg, setMsg] = useState("");
 
   return (
     <>
-    <div className="relative min-h-screen overflow-hidden">
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/gym-bg.jpg')" }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-900/40" />
+      <div className="relative min-h-screen overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/gym-bg.jpg')" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-900/40" />
 
-      <div className="relative flex min-h-screen items-center justify-center px-4 py-12">
-        <div className="relative w-full max-w-xl">
-          <div className="pointer-events-none absolute inset-x-6 top-full h-24 rounded-[28px] bg-white/25 blur-3xl opacity-60" />
-          <div className="mirror-card relative rounded-[28px] border border-white/30 bg-white/70 shadow-[0_25px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
-            <div className="grid gap-6 rounded-[26px] bg-gradient-to-b from-white/70 to-white/55 p-8 shadow-inner">
+        <div className="relative flex min-h-screen items-center justify-center px-4 py-12">
+          <div className="relative w-full max-w-xl">
+            <div className="pointer-events-none absolute inset-x-6 top-full h-24 rounded-[28px] bg-white/25 blur-3xl opacity-60" />
+            <div className="mirror-card relative rounded-[28px] border border-white/30 bg-white/70 shadow-[0_25px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+              <div className="grid gap-6 rounded-[26px] bg-gradient-to-b from-white/70 to-white/55 p-8 shadow-inner">
 
-              {/* Logo */}
-              <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-900 text-lg font-bold text-white shadow-lg">
-                  e
+                {/* Logo */}
+                <div className="flex items-center gap-3">
+                  <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-900 text-lg font-bold text-white shadow-lg">
+                    e
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      Fitness
+                    </p>
+                    <p className="text-base font-semibold text-slate-900">
+                      Gym management
+                    </p>
+                  </div>
                 </div>
+
+                {/* Titles */}
                 <div>
-                  <p className="text-xs font-semibold uppercase text-slate-500">
-                    Fitness
-                  </p>
-                  <p className="text-base font-semibold text-slate-900">
-                    Gym management
+                  <h1 className="text-2xl font-semibold text-slate-900">Log in</h1>
+                  <p className="text-sm text-slate-600">
+                    Access your gym dashboard in seconds.
                   </p>
                 </div>
-              </div>
 
-              {/* Titles */}
-              <div>
-                <h1 className="text-2xl font-semibold text-slate-900">Log in</h1>
-                <p className="text-sm text-slate-600">
-                  Access your gym dashboard in seconds.
-                </p>
-              </div>
+                {/* Error Box */}
+                {error ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {error}
+                  </div>
+                ) : null}
 
-              {/* Error Box */}
-              {error ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {error}
-                </div>
-              ) : null}
-
-              {/* FORM */}
-              <form className="space-y-4" onSubmit={handleSubmit} noValidate>
-                <Input
-                  label="Email"
-                  type="email"
-                  placeholder="admin@gymmini.app"
-                  value={form.email}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, email: e.target.value }))
-                  }
-                  required
-                />
-
-                {/* PASSWORD WITH EYE ICON */}
-                <div className="relative">
+                {/* FORM */}
+                <form className="space-y-4" onSubmit={handleSubmit} noValidate>
                   <Input
-                    label="Password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={form.password}
+                    label="Email"
+                    type="email"
+                    placeholder="admin@gymmini.app"
+                    value={form.email}
                     onChange={(e) =>
-                      setForm((f) => ({ ...f, password: e.target.value }))
+                      setForm((f) => ({ ...f, email: e.target.value }))
                     }
                     required
                   />
 
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-[38px] text-slate-600"
+                  {/* PASSWORD WITH EYE ICON */}
+                  <div className="relative">
+                    <Input
+                      label="Password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={form.password}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, password: e.target.value }))
+                      }
+                      required
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-[38px] text-slate-600"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+
+                  {/* Remember + Forgot */}
+                  <div className="flex items-center justify-between text-sm text-slate-600">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={remember}
+                        onChange={() => setRemember((v) => !v)}
+                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500"
+                      />
+                      Keep me logged in
+                    </label>
+                    <Link
+                      href="#"
+                      className="font-semibold text-slate-800"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowEmailModal(true);
+                      }}
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    loading={loading}
+                    className="w-full"
+                    size="lg"
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
+                    {loading ? "Signing in..." : "Log in"}
+                  </Button>
+                </form>
+
+                {/* Footer */}
+                <p className="text-center text-sm text-slate-600">
+                  Don&apos;t have an account?{" "}
+                  <Link href="/register" className="font-semibold text-slate-900">
+                    Register
+                  </Link>
+                </p>
+
+                <div className="flex items-center justify-center gap-4 text-[11px] text-slate-500">
+                  <Link href="#" className="hover:text-slate-800">
+                    Terms of Use
+                  </Link>
+                  <span>•</span>
+                  <Link href="#" className="hover:text-slate-800">
+                    Privacy Policy
+                  </Link>
                 </div>
 
-                {/* Remember + Forgot */}
-                <div className="flex items-center justify-between text-sm text-slate-600">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={remember}
-                      onChange={() => setRemember((v) => !v)}
-                      className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500"
-                    />
-                    Keep me logged in
-                  </label>
-                  <Link
-                  href="#"
-                  className="font-semibold text-slate-800"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setShowEmailModal(true);
-                  }}
-                >
-                  Forgot password?
-                </Link>
-                                </div>
-
-                <Button
-                  type="submit"
-                  loading={loading}
-                  className="w-full"
-                  size="lg"
-                >
-                  {loading ? "Signing in..." : "Log in"}
-                </Button>
-              </form>
-
-              {/* Footer */}
-              <p className="text-center text-sm text-slate-600">
-                Don&apos;t have an account?{" "}
-                <Link href="/register" className="font-semibold text-slate-900">
-                  Register
-                </Link>
-              </p>
-
-              <div className="flex items-center justify-center gap-4 text-[11px] text-slate-500">
-                <Link href="#" className="hover:text-slate-800">
-                  Terms of Use
-                </Link>
-                <span>•</span>
-                <Link href="#" className="hover:text-slate-800">
-                  Privacy Policy
-                </Link>
               </div>
-
             </div>
           </div>
         </div>
       </div>
-    </div>
-    <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>
-  <DialogContent className="rounded-2xl">
-    <DialogHeader>
-      <DialogTitle>Reset Password</DialogTitle>
-      <DialogDescription>
-        Enter the registered email to receive OTP.
-      </DialogDescription>
-    </DialogHeader>
+      <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>
+        <DialogContent className="rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Enter the registered email to receive OTP.
+            </DialogDescription>
+          </DialogHeader>
 
-    <Input
-      label="Email"
-      type="email"
-      placeholder="yourmail@example.com"
-      value={resetEmail}
-      onChange={(e) => setResetEmail(e.target.value)}
-    />
+          <Input
+            label="Email"
+            type="email"
+            placeholder="yourmail@example.com"
+            value={resetEmail}
+            onChange={(e) => setResetEmail(e.target.value)}
+          />
 
-    {msg && <p className="text-sm text-red-600">{msg}</p>}
+          {msg && <p className="text-sm text-red-600">{msg}</p>}
 
-    <Button
-      className="w-full"
-      onClick={async () => {
-        if (!/\S+@\S+\.\S+/.test(resetEmail)) {
-          setMsg("Enter a valid email address.");
-          return;
-        }
-        setMsg("");
-        try {
-          await authApi.forgotPassword(resetEmail);
-          setShowEmailModal(false);
-          setShowOtpModal(true);
-        } catch (err: any) {
-          setMsg(err.message || "Failed to send OTP. Please try again.");
-        }
-      }}
-    >
-      Send OTP
-    </Button>
-  </DialogContent>
-</Dialog>
-<Dialog open={showOtpModal} onOpenChange={setShowOtpModal}>
-  <DialogContent className="rounded-2xl">
-    <DialogHeader>
-      <DialogTitle>Enter OTP</DialogTitle>
-      <DialogDescription>
-        OTP has been sent to <b>{resetEmail}</b>.
-      </DialogDescription>
-    </DialogHeader>
+          <Button
+            className="w-full"
+            onClick={async () => {
+              if (!/\S+@\S+\.\S+/.test(resetEmail)) {
+                setMsg("Enter a valid email address.");
+                return;
+              }
+              setMsg("");
+              try {
+                await authApi.forgotPassword(resetEmail.trim());
+                setShowEmailModal(false);
+                setShowOtpModal(true);
+              } catch (err: any) {
+                setMsg(err.message || "Failed to send OTP. Please try again.");
+              }
+            }}
+          >
+            Send OTP
+          </Button>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showOtpModal} onOpenChange={setShowOtpModal}>
+        <DialogContent className="rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Enter OTP</DialogTitle>
+            <DialogDescription>
+              OTP has been sent to <b>{resetEmail}</b>.
+            </DialogDescription>
+          </DialogHeader>
 
-    <Input
-      label="OTP"
-      type="text"
-      maxLength={6}
-      placeholder="123456"
-      value={otp}
-      onChange={(e) => setOtp(e.target.value)}
-    />
+          <Input
+            label="OTP"
+            type="text"
+            maxLength={6}
+            placeholder="123456"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value)}
+          />
 
-    {msg && <p className="text-sm text-red-600">{msg}</p>}
+          {msg && <p className="text-sm text-red-600">{msg}</p>}
 
-    <Button
-      className="w-full"
-      onClick={async () => {
-        if (!otp || otp.length !== 6) {
-          setMsg("Please enter a valid 6-digit OTP.");
-          return;
-        }
-        setMsg("");
-        try {
-          await authApi.verifyOTP(resetEmail, otp);
-          setShowOtpModal(false);
-          setShowResetModal(true);
-        } catch (err: any) {
-          setMsg(err.message || "Invalid OTP. Please try again.");
-        }
-      }}
-    >
-      Verify OTP
-    </Button>
-  </DialogContent>
-</Dialog>
-<Dialog open={showResetModal} onOpenChange={setShowResetModal}>
-  <DialogContent className="rounded-2xl">
-    <DialogHeader>
-      <DialogTitle>Create New Password</DialogTitle>
-      <DialogDescription>
-        Your new password must be at least 6 characters.
-      </DialogDescription>
-    </DialogHeader>
+          <Button
+            className="w-full"
+            onClick={async () => {
+              if (!otp || otp.length !== 6) {
+                setMsg("Please enter a valid 6-digit OTP.");
+                return;
+              }
+              setMsg("");
+              try {
+                await authApi.verifyOTP(resetEmail.trim(), otp.trim());
+                setShowOtpModal(false);
+                setShowResetModal(true);
+              } catch (err: any) {
+                setMsg(err.message || "Invalid OTP. Please try again.");
+              }
+            }}
+          >
+            Verify OTP
+          </Button>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showResetModal} onOpenChange={setShowResetModal}>
+        <DialogContent className="rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Create New Password</DialogTitle>
+            <DialogDescription>
+              Your new password must be at least 6 characters.
+            </DialogDescription>
+          </DialogHeader>
 
-    {/* New Password */}
-    <div className="relative">
-      <Input
-        label="New Password"
-        type={showPass ? "text" : "password"}
-        placeholder="••••••••"
-        value={newPass}
-        onChange={(e) => setNewPass(e.target.value)}
-      />
-      <button
-        type="button"
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600"
-        onClick={() => setShowPass((v) => !v)}
-      >
-        {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
-      </button>
-    </div>
+          {/* New Password */}
+          <div className="relative">
+            <Input
+              label="New Password"
+              type={showPass ? "text" : "password"}
+              placeholder="••••••••"
+              value={newPass}
+              onChange={(e) => setNewPass(e.target.value)}
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600"
+              onClick={() => setShowPass((v) => !v)}
+            >
+              {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
 
-    {/* Confirm Password */}
-    <div className="relative">
-      <Input
-        label="Confirm Password"
-        type={showPass2 ? "text" : "password"}
-        placeholder="••••••••"
-        value={confirmPass}
-        onChange={(e) => setConfirmPass(e.target.value)}
-      />
-      <button
-        type="button"
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600"
-        onClick={() => setShowPass2((v) => !v)}
-      >
-        {showPass2 ? <EyeOff size={18} /> : <Eye size={18} />}
-      </button>
-    </div>
+          {/* Confirm Password */}
+          <div className="relative">
+            <Input
+              label="Confirm Password"
+              type={showPass2 ? "text" : "password"}
+              placeholder="••••••••"
+              value={confirmPass}
+              onChange={(e) => setConfirmPass(e.target.value)}
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600"
+              onClick={() => setShowPass2((v) => !v)}
+            >
+              {showPass2 ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
 
-    {msg && <p className="text-sm text-red-600">{msg}</p>}
+          {msg && <p className="text-sm text-red-600">{msg}</p>}
 
-    <Button
-      className="w-full"
-      onClick={async () => {
-        if (newPass.length < 6) {
-          setMsg("Password must be at least 6 characters.");
-          return;
-        }
-        if (newPass !== confirmPass) {
-          setMsg("Passwords do not match.");
-          return;
-        }
+          <Button
+            className="w-full"
+            onClick={async () => {
+              if (newPass.length < 6) {
+                setMsg("Password must be at least 6 characters.");
+                return;
+              }
+              if (newPass !== confirmPass) {
+                setMsg("Passwords do not match.");
+                return;
+              }
 
-        setMsg("");
-        try {
-          await authApi.resetPassword(resetEmail, otp, newPass, confirmPass);
-          setShowResetModal(false);
-          alert("Password changed successfully! You can now login with your new password.");
-          // Reset all states
-          setResetEmail("");
-          setOtp("");
-          setNewPass("");
-          setConfirmPass("");
-        } catch (err: any) {
-          setMsg(err.message || "Failed to reset password. Please try again.");
-        }
-      }}
-    >
-      Update Password
-    </Button>
-  </DialogContent>
-</Dialog>
+              setMsg("");
+              try {
+                await authApi.resetPassword(resetEmail.trim(), otp.trim(), newPass, confirmPass);
+                setShowResetModal(false);
+                alert("Password changed successfully! You can now login with your new password.");
+                // Reset all states
+                setResetEmail("");
+                setOtp("");
+                setNewPass("");
+                setConfirmPass("");
+              } catch (err: any) {
+                setMsg(err.message || "Failed to reset password. Please try again.");
+              }
+            }}
+          >
+            Update Password
+          </Button>
+        </DialogContent>
+      </Dialog>
 
     </>
   );

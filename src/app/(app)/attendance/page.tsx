@@ -3,7 +3,7 @@
 import { Card } from "@/components/ui/card";
 import { TableRow } from "@/components/ui/table-row";
 import { attendanceDays, attendanceSummary } from "@/data/attendance";
-import { membersApi, Member, attendanceApi, sessionsApi, Session } from "@/lib/api";
+import { membersApi, Member, attendanceApi, sessionsApi, Session, getUser } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 
@@ -23,19 +23,28 @@ export default function AttendancePage() {
     const loadInitialData = async () => {
       try {
         setLoading(true);
-        const [traineesRes, trainersRes, sessionsRes] = await Promise.all([
+        const [traineesRes, sessionsRes] = await Promise.all([
           membersApi.getAll(undefined, undefined, "member"),
-          membersApi.getAll(undefined, undefined, "trainer"),
           sessionsApi.getAll(),
         ]);
 
         const trainees = traineesRes.success && traineesRes.data ? traineesRes.data : [];
-        const trainers = trainersRes.success && trainersRes.data ? trainersRes.data : [];
-        const fetchedSessions = sessionsRes.success && sessionsRes.data ? sessionsRes.data : [];
+        // const trainers = trainersRes.success && trainersRes.data ? trainersRes.data : [];
+        let fetchedSessions = sessionsRes.success && sessionsRes.data ? sessionsRes.data : [];
+
+        // Filter sessions for trainer
+        const user = getUser();
+        if (user?.role === 'trainer') {
+          fetchedSessions = fetchedSessions.filter(s => {
+            if (typeof s.trainer === 'object' && s.trainer.email) {
+              return s.trainer.email === user.email;
+            }
+            return false;
+          });
+        }
 
         setParticipants([
           ...trainees.map((t) => ({ ...t, role: "member" as const })),
-          ...trainers.map((t) => ({ ...t, role: "trainer" as const })),
         ]);
 
         setSessions(fetchedSessions);
@@ -98,11 +107,7 @@ export default function AttendancePage() {
   const activeParticipants = useMemo(
     () =>
       participants.filter((p) => {
-        if (p.role === "member") {
-          return p.status?.toLowerCase() !== "inactive" && p.isActive !== false;
-        }
-        // Only show members (trainees)
-        return false;
+        return p.status?.toLowerCase() !== "inactive" && p.isActive !== false;
       }),
     [participants]
   );
