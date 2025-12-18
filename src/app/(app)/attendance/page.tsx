@@ -14,9 +14,29 @@ export default function AttendancePage() {
   const [participants, setParticipants] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const todaySessions = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return sessions.filter(s => {
+      const d = new Date(s.date);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime() === today.getTime();
+    });
+  }, [sessions]);
+
+  const pastSessions = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return sessions.filter(s => {
+      const d = new Date(s.date);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime() < today.getTime();
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [sessions]);
+
   const selectedSession = useMemo(
-    () => sessions.find((s) => s._id === selectedSessionId) ?? sessions[0],
-    [sessions, selectedSessionId]
+    () => sessions.find((s) => s._id === selectedSessionId) || todaySessions[0],
+    [sessions, selectedSessionId, todaySessions]
   );
 
   useEffect(() => {
@@ -36,7 +56,7 @@ export default function AttendancePage() {
         const user = getUser();
         if (user?.role === 'trainer') {
           fetchedSessions = fetchedSessions.filter(s => {
-            if (typeof s.trainer === 'object' && s.trainer.email) {
+            if (s.trainer && typeof s.trainer === 'object' && s.trainer.email) {
               return s.trainer.email === user.email;
             }
             return false;
@@ -49,23 +69,17 @@ export default function AttendancePage() {
 
         setSessions(fetchedSessions);
 
-        if (fetchedSessions.length > 0) {
-          // Find today's session or the next upcoming one
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-          const upcomingSession = fetchedSessions.find(s => {
-            const sessionDate = new Date(s.date);
-            sessionDate.setHours(0, 0, 0, 0);
-            return sessionDate.getTime() >= today.getTime();
-          });
+        const todaySession = fetchedSessions.find(s => {
+          const sessionDate = new Date(s.date);
+          sessionDate.setHours(0, 0, 0, 0);
+          return sessionDate.getTime() === today.getTime();
+        });
 
-          // If no upcoming session, use the last one (most recent past)
-          // If upcoming found, use that.
-          // Otherwise default to first (oldest) as fallback
-          const defaultSession = upcomingSession || fetchedSessions[fetchedSessions.length - 1] || fetchedSessions[0];
-
-          setSelectedSessionId(defaultSession._id);
+        if (todaySession) {
+          setSelectedSessionId(todaySession._id);
         }
       } catch (err) {
         console.error("Error loading initial data:", err);
@@ -161,24 +175,45 @@ export default function AttendancePage() {
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-sm font-semibold text-blue-700">
-                  Select class
+                  {selectedSession && !todaySessions.find(s => s._id === selectedSession._id)
+                    ? "Viewing Past Record"
+                    : "Select Today's Class"}
                 </p>
                 <p className="text-sm text-slate-500">
-                  Mark present members and see live stats.
+                  {selectedSession && !todaySessions.find(s => s._id === selectedSession._id)
+                    ? `Viewing attendance for ${new Date(selectedSession.date).toLocaleDateString()}.`
+                    : "Mark present members and see live stats."}
                 </p>
               </div>
-              <select
-                value={selectedSession?._id || ""}
-                onChange={(e) => setSelectedSessionId(e.target.value)}
-                className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-inner outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              >
-                {sessions.length === 0 && <option value="">No sessions found</option>}
-                {sessions.map((cls) => (
-                  <option key={cls._id} value={cls._id}>
-                    {cls.name} — {new Date(cls.date).toLocaleDateString()} {cls.startTime}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2">
+                {selectedSession && !todaySessions.find(s => s._id === selectedSession._id) && (
+                  <button
+                    onClick={() => setSelectedSessionId(todaySessions[0]?._id || "")}
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                  >
+                    Back to Today
+                  </button>
+                )}
+                <select
+                  value={selectedSession?._id || ""}
+                  onChange={(e) => setSelectedSessionId(e.target.value)}
+                  className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-inner outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  {todaySessions.length === 0 && !todaySessions.find(s => s._id === selectedSession?._id) && (
+                    <option value="">No classes today</option>
+                  )}
+                  {todaySessions.map((cls) => (
+                    <option key={cls._id} value={cls._id}>
+                      {cls.name} — {cls.startTime}
+                    </option>
+                  ))}
+                  {selectedSession && !todaySessions.find(s => s._id === selectedSession._id) && (
+                    <option key={selectedSession._id} value={selectedSession._id}>
+                      {selectedSession.name} — {new Date(selectedSession.date).toLocaleDateString()}
+                    </option>
+                  )}
+                </select>
+              </div>
             </div>
 
             <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -189,9 +224,9 @@ export default function AttendancePage() {
                 Trainees are listed. Tap to toggle present (saved to DB).
               </p>
 
-              {sessions.length === 0 && (
+              {todaySessions.length === 0 && (
                 <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 border border-amber-200">
-                  No classes found. Please create a class in the dashboard or database to mark attendance.
+                  No classes scheduled for today. Please check the history below for past records.
                 </div>
               )}
 
@@ -280,7 +315,7 @@ export default function AttendancePage() {
                 Quick class info
               </p>
               <p className="text-xs text-slate-500">
-                Coach {typeof selectedSession?.trainer === 'object' ? (selectedSession.trainer as any).name : selectedSession?.trainer || "Unknown"} · {selectedSession?.startTime || "N/A"}
+                Coach {selectedSession?.trainer && typeof selectedSession.trainer === 'object' ? (selectedSession.trainer as any).name : selectedSession?.trainer || "Unknown"} · {selectedSession?.startTime || "N/A"}
               </p>
               <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
                 <div className="flex items-center justify-between">
@@ -300,6 +335,60 @@ export default function AttendancePage() {
           </div>
         </div>
       </Card>
+
+      <div className="mt-8">
+        <h3 className="text-lg font-semibold text-slate-900 mb-4">Attendance History</h3>
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-slate-500">
+                  <th className="pb-3 pl-4 font-medium">Class Name</th>
+                  <th className="pb-3 font-medium">Date</th>
+                  <th className="pb-3 font-medium">Coach</th>
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 pr-4 text-right font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {pastSessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-500">
+                      No past attendance records found.
+                    </td>
+                  </tr>
+                ) : (
+                  pastSessions.map((s) => (
+                    <tr key={s._id} className="group hover:bg-slate-50/50 transition-colors">
+                      <td className="py-4 pl-4 font-semibold text-slate-900">{s.name}</td>
+                      <td className="py-4 text-slate-600">{new Date(s.date).toLocaleDateString()}</td>
+                      <td className="py-4 text-slate-600">
+                        {s.trainer && typeof s.trainer === 'object' ? (s.trainer as any).name : s.trainer || "Unknown"}
+                      </td>
+                      <td className="py-4">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${s.status === 'Completed' ? 'bg-emerald-50 text-emerald-700' :
+                          s.status === 'Cancelled' ? 'bg-rose-50 text-rose-700' :
+                            'bg-blue-50 text-blue-700'
+                          }`}>
+                          {s.status}
+                        </span>
+                      </td>
+                      <td className="py-4 pr-4 text-right">
+                        <button
+                          onClick={() => setSelectedSessionId(s._id)}
+                          className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

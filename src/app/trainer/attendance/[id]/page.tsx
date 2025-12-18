@@ -86,7 +86,7 @@ export default function TrainerAttendanceDetail() {
 
       {saved ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Attendance saved (mock). You can edit anytime.
+          Attendance saved. You can edit anytime.
         </div>
       ) : null}
 
@@ -113,11 +113,10 @@ export default function TrainerAttendanceDetail() {
                   </span>,
                   <span
                     key="status"
-                    className={`badge ${
-                      isPresent
+                    className={`badge ${isPresent
                         ? "bg-emerald-50 text-emerald-700"
                         : "bg-slate-100 text-slate-700"
-                    }`}
+                      }`}
                   >
                     {isPresent ? "Present" : "Absent"}
                   </span>,

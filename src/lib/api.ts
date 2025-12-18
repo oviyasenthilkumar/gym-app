@@ -67,6 +67,7 @@ export interface DashboardStats {
   expiringMembers?: number;
   weeklyClasses?: number;
   totalAttendance?: number;
+  revenueTrend?: { label: string; value: number }[];
 }
 
 // Get auth token from localStorage

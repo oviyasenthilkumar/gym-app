@@ -658,7 +658,7 @@ export default function MembersPage() {
           status: form.status,
           membershipStartDate: form.membershipStartDate,
           membershipEndDate: form.membershipEndDate,
-          nextBillingDate: form.nextBillingDate,
+          nextBillingDate: form.nextBillingDate || undefined,
           age: form.age ? parseInt(form.age) : undefined,
           weight: form.weight ? parseFloat(form.weight) : undefined,
           class: form.className,
@@ -1015,48 +1015,63 @@ export default function MembersPage() {
           resetForm();
         }}
         title={editing ? "Edit member" : "Add User"}
+        className="max-w-2xl"
+        footer={
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => {
+              setOpenCreate(false);
+              setEditing(null);
+              resetForm();
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>
+              {editing ? "Save changes" : "Add member"}
+            </Button>
+          </div>
+        }
       >
-        <div className="space-y-3">
-          <Input
-            label="Full name"
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          />
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Full name"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            />
 
-          <Input
-            label="Email"
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-          />
+            <Input
+              label="Email"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            />
 
-          {!editing && (
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Role
-              </label>
-              <select
-                value={form.role}
-                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as "admin" | "trainer" | "member" }))}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              >
-                <option value="member">Trainee</option>
-                <option value="trainer">Trainer</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-          )}
+            {!editing && (
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Role
+                </label>
+                <select
+                  value={form.role}
+                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as "admin" | "trainer" | "member" }))}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  <option value="member">Trainee</option>
+                  <option value="trainer">Trainer</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            )}
 
-          <Input
-            label="Phone"
-            value={form.phone}
-            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-            required={form.role !== 'admin'}
-          />
+            <Input
+              label="Phone"
+              value={form.phone}
+              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              required={form.role !== 'admin'}
+            />
 
-          {form.role === 'member' && (
-            <>
-              <div className="grid gap-3 sm:grid-cols-2">
+            {form.role === 'member' && (
+              <>
                 <Input
                   label="Age"
                   type="number"
@@ -1075,29 +1090,28 @@ export default function MembersPage() {
                   min="1"
                   max="300"
                 />
-              </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
                 <Input
                   label="Plan"
                   placeholder="Standard / Plus / Premium"
                   value={form.plan}
                   onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))}
                 />
-                <Input
-                  label="Status"
-                  placeholder="Active"
-                  value={form.status}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      status: e.target.value,
-                    }))
-                  }
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Status
+                  </label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
                 <Input
                   label="Start date"
                   type="date"
@@ -1110,9 +1124,7 @@ export default function MembersPage() {
                   value={form.membershipEndDate}
                   onChange={(e) => setForm((f) => ({ ...f, membershipEndDate: e.target.value }))}
                 />
-              </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
                 <Input
                   label="Next billing date"
                   type="date"
@@ -1126,9 +1138,7 @@ export default function MembersPage() {
                   value={form.className}
                   onChange={(e) => setForm((f) => ({ ...f, className: e.target.value }))}
                 />
-              </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Class Type
@@ -1160,21 +1170,8 @@ export default function MembersPage() {
                     <option value="Advanced">Advanced</option>
                   </select>
                 </div>
-              </div>
-            </>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => {
-              setOpenCreate(false);
-              setEditing(null);
-              resetForm();
-            }}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave}>
-              {editing ? "Save changes" : "Add member"}
-            </Button>
+              </>
+            )}
           </div>
         </div>
       </Modal>

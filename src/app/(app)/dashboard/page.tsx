@@ -19,6 +19,8 @@ export default function DashboardPage() {
   const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
   const [recentMembers, setRecentMembers] = useState<any[]>([]);
 
+  const [revenueData, setRevenueData] = useState<any[]>([]);
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -46,6 +48,9 @@ export default function DashboardPage() {
             weeklyClasses: data.weeklyClassesCount || data.weeklyClasses || 0,
             attendancePercent: data.attendancePercentage || 0,
           });
+          if (data.revenueTrend) {
+            setRevenueData(data.revenueTrend);
+          }
         }
 
         // Load recent members
@@ -145,23 +150,29 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm font-semibold text-blue-700">Revenue trend</p>
               <p className="text-sm text-slate-500">
-                Last 7 days • mock data
+                Last 7 days • Estimated
               </p>
             </div>
             <div className="badge bg-emerald-50 text-emerald-700">
               Stable growth
             </div>
           </header>
-          <div className="flex items-end gap-3">
-            {revenueTrend.map((point) => (
-              <div key={point.label} className="flex flex-1 flex-col items-center gap-2">
-                <div
-                  className="w-full rounded-xl bg-gradient-to-t from-blue-200 via-blue-400 to-blue-600 shadow-inner"
-                  style={{ height: `${point.value * 6}px` }}
-                />
-                <p className="text-xs text-slate-500">{point.label}</p>
+          <div className="flex items-end gap-3 h-40">
+            {revenueData.length > 0 ? (
+              revenueData.map((point) => (
+                <div key={point.label} className="flex flex-1 flex-col items-center gap-2 h-full justify-end">
+                  <div
+                    className="w-full rounded-xl bg-gradient-to-t from-blue-200 via-blue-400 to-blue-600 shadow-inner transition-all duration-500"
+                    style={{ height: `${Math.max(point.value / 10, 4)}px` }}
+                  />
+                  <p className="text-xs text-slate-500">{point.label}</p>
+                </div>
+              ))
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-400 text-sm">
+                No revenue data available
               </div>
-            ))}
+            )}
           </div>
         </Card>
 

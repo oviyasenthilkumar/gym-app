@@ -247,6 +247,18 @@ export default function ClassesPage() {
           resetForm();
         }}
         title={editing ? "Edit class" : "Create class"}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => {
+              setOpenModal(false);
+              setEditing(null);
+              resetForm();
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>{editing ? "Save changes" : "Create class"}</Button>
+          </div>
+        }
       >
         <div className="space-y-4">
           <Input label="Class name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -287,16 +299,6 @@ export default function ClassesPage() {
               </select>
             </div>
           )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => {
-              setOpenModal(false);
-              setEditing(null);
-              resetForm();
-            }}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave}>{editing ? "Save changes" : "Create class"}</Button>
-          </div>
         </div>
       </Modal>
       <button

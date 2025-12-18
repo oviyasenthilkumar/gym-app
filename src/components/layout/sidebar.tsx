@@ -93,8 +93,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             View member onboarding, billing tips, and reports in seconds.
           </p>
           <Link
-            href="#"
-            className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-blue-700"
+            href="/guide"
+            className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:text-blue-800 transition-colors"
           >
             Open guide →
           </Link>
